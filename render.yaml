@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: tanitim-medya-paneli
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run seed && npm start
+    disk:
+      name: panel-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: DATA_DIR
+        value: /var/data
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_KULLANICI_ADI
+        sync: false
+      - key: ADMIN_SIFRE
+        sync: false
+      - key: SAFE_KEY
+        sync: false

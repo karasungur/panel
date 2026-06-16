@@ -1,0 +1,128 @@
+const express = require('express');
+const db = require('../database/db');
+const { tokenDogrula, adminVeyaYardimci } = require('../middleware/auth');
+const router = express.Router();
+
+function kullanicininIlleri(kullaniciId) {
+    return db.prepare('SELECT il_id FROM kullanici_iller WHERE kullanici_id = ?')
+        .all(kullaniciId)
+        .map(r => r.il_id);
+}
+
+function ileErisebilir(req, il_id) {
+    if ((req.kullanici.rol === 'admin' || req.kullanici.rol === 'yardimci')) return true;
+    return kullanicininIlleri(req.kullanici.id).includes(il_id);
+}
+
+// GET /api/ilceler?il_id=X
+router.get('/', tokenDogrula, (req, res) => {
+    const il_id = parseInt(req.query.il_id);
+    if (!il_id) return res.status(400).json({ hata: 'il_id parametresi gereklidir.' });
+    if (!ileErisebilir(req, il_id)) {
+        return res.status(403).json({ hata: 'Bu ile erişim yetkiniz yok.' });
+    }
+    const ilceler = db.prepare('SELECT * FROM ilceler WHERE il_id = ? ORDER BY ilce_adi').all(il_id);
+    res.json(ilceler);
+});
+
+// POST /api/ilceler -> yeni ilce ekle (admin veya o ilin sorumlusu)
+router.post('/', tokenDogrula, (req, res) => {
+    const { il_id, ilce_adi } = req.body;
+    if (!il_id || !ilce_adi) return res.status(400).json({ hata: 'il_id ve ilce_adi gereklidir.' });
+    if (!ileErisebilir(req, parseInt(il_id))) {
+        return res.status(403).json({ hata: 'Bu ile erişim yetkiniz yok.' });
+    }
+    try {
+        const sonuc = db.prepare('INSERT INTO ilceler (il_id, ilce_adi) VALUES (?, ?)')
+            .run(il_id, ilce_adi);
+        res.status(201).json({ mesaj: 'İlçe eklendi.', id: sonuc.lastInsertRowid });
+    } catch (err) {
+        res.status(500).json({ hata: 'Sunucu hatası.', detay: err.message });
+    }
+});
+
+// PUT /api/ilceler/:id -> ilce guncelle (admin veya o ilin sorumlusu)
+router.put('/:id', tokenDogrula, (req, res) => {
+    const ilce = db.prepare('SELECT * FROM ilceler WHERE id = ?').get(parseInt(req.params.id));
+    if (!ilce) return res.status(404).json({ hata: 'İlçe bulunamadı.' });
+    if (!ileErisebilir(req, ilce.il_id)) {
+        return res.status(403).json({ hata: 'Bu ilçeye erişim yetkiniz yok.' });
+    }
+    const {
+        ilce_adi, baskan_ad_soyad, baskan_telefon, baskan_tc, baskan_foto,
+        instagram_url, twitter_url, facebook_url, tiktok_url
+    } = req.body;
+    try {
+        db.prepare(`
+            UPDATE ilceler SET
+                ilce_adi        = COALESCE(?, ilce_adi),
+                baskan_ad_soyad = COALESCE(?, baskan_ad_soyad),
+                baskan_telefon  = COALESCE(?, baskan_telefon),
+                baskan_tc       = COALESCE(?, baskan_tc),
+                baskan_foto     = COALESCE(?, baskan_foto),
+                instagram_url   = COALESCE(?, instagram_url),
+                twitter_url     = COALESCE(?, twitter_url),
+                facebook_url    = COALESCE(?, facebook_url),
+                tiktok_url      = COALESCE(?, tiktok_url)
+            WHERE id = ?
+        `).run(
+            ilce_adi ?? null, baskan_ad_soyad ?? null, baskan_telefon ?? null, baskan_tc ?? null, baskan_foto ?? null,
+            instagram_url ?? null, twitter_url ?? null, facebook_url ?? null, tiktok_url ?? null,
+            parseInt(req.params.id)
+        );
+        res.json({ mesaj: 'İlçe güncellendi.' });
+    } catch (err) {
+        res.status(500).json({ hata: 'Sunucu hatası.', detay: err.message });
+    }
+});
+
+// DELETE /api/ilceler/:id -> ilce sil (admin veya o ilin sorumlusu)
+router.delete('/:id', tokenDogrula, (req, res) => {
+    const ilce = db.prepare('SELECT * FROM ilceler WHERE id = ?').get(parseInt(req.params.id));
+    if (!ilce) return res.status(404).json({ hata: 'İlçe bulunamadı.' });
+    if (!ileErisebilir(req, ilce.il_id)) {
+        return res.status(403).json({ hata: 'Bu ilçeye erişim yetkiniz yok.' });
+    }
+    db.prepare('DELETE FROM ilceler WHERE id = ?').run(parseInt(req.params.id));
+    res.json({ mesaj: 'İlçe silindi.' });
+});
+
+// POST /api/ilceler/toplu -> bir il icin tum ilcelerin baskan bilgilerini toplu kaydet
+// Body: { il_id, satirlar: [{ id?, ilce_adi, baskan_ad_soyad, baskan_telefon, ... }, ...] }
+// id varsa guncelle, yoksa yeni ilce ekle
+router.post('/toplu', tokenDogrula, (req, res) => {
+    const { il_id, satirlar } = req.body;
+    if (!il_id || !Array.isArray(satirlar)) return res.status(400).json({ hata: 'il_id ve satirlar gereklidir.' });
+    if (!ileErisebilir(req, parseInt(il_id))) return res.status(403).json({ hata: 'Bu ile erişim yetkiniz yok.' });
+
+    const guncelle = db.prepare(`UPDATE ilceler SET
+        baskan_ad_soyad = ?, baskan_telefon = ?, baskan_tc = ?, baskan_foto = ?,
+        instagram_url = ?, twitter_url = ?, facebook_url = ?, tiktok_url = ?
+        WHERE id = ? AND il_id = ?`);
+    const ekle = db.prepare(`INSERT INTO ilceler (il_id, ilce_adi, baskan_ad_soyad, baskan_telefon, baskan_tc, baskan_foto, instagram_url, twitter_url, facebook_url, tiktok_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+
+    let guncellenen = 0, eklenen = 0, hata = 0;
+    for (const s of satirlar) {
+        try {
+            if (s.id) {
+                const sonuc = guncelle.run(
+                    s.baskan_ad_soyad || null, s.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
+                    s.instagram_url || null, s.twitter_url || null, s.facebook_url || null, s.tiktok_url || null,
+                    parseInt(s.id), parseInt(il_id)
+                );
+                if (sonuc.changes > 0) guncellenen++;
+            } else if (s.ilce_adi && s.ilce_adi.trim()) {
+                ekle.run(
+                    parseInt(il_id), s.ilce_adi.trim(),
+                    s.baskan_ad_soyad || null, s.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
+                    s.instagram_url || null, s.twitter_url || null, s.facebook_url || null, s.tiktok_url || null
+                );
+                eklenen++;
+            }
+        } catch(e) { hata++; }
+    }
+    res.json({ mesaj: 'Toplu güncelleme tamamlandı.', guncellenen, eklenen, hata });
+});
+
+module.exports = router;
