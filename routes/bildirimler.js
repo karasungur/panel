@@ -3,8 +3,21 @@ const db = require('../database/db');
 const { tokenDogrula } = require('../middleware/auth');
 const router = express.Router();
 
+// 14 gunden eski okunmus bildirimleri her API cagrisi oncesi temizle (hafif)
+let sonTemizlik = 0;
+function eskiBildirimleriTemizle(){
+    const simdi = Date.now();
+    // Saatte bir yapilsin yeter
+    if (simdi - sonTemizlik < 60*60*1000) return;
+    sonTemizlik = simdi;
+    try {
+        db.prepare("DELETE FROM bildirimler WHERE olusturulma_tarihi < datetime('now', '-14 days')").run();
+    } catch(e) {}
+}
+
 // GET /api/bildirimler -> kendi bildirimlerim
 router.get('/', tokenDogrula, (req, res) => {
+    eskiBildirimleriTemizle();
     const b = db.prepare('SELECT * FROM bildirimler WHERE kullanici_id = ? ORDER BY id DESC LIMIT 50').all(req.kullanici.id);
     const okunmamis = db.prepare('SELECT COUNT(*) s FROM bildirimler WHERE kullanici_id = ? AND okundu = 0').get(req.kullanici.id).s;
     res.json({ bildirimler: b, okunmamis });
@@ -28,10 +41,16 @@ router.put('/:id/okundu', tokenDogrula, (req, res) => {
     res.json({ mesaj: 'Okundu.' });
 });
 
-// DELETE /api/bildirimler/temizle -> okunmuslari sil
-router.delete('/temizle', tokenDogrula, (req, res) => {
-    db.prepare('DELETE FROM bildirimler WHERE kullanici_id = ? AND okundu = 1').run(req.kullanici.id);
-    res.json({ mesaj: 'Okunmuş bildirimler silindi.' });
+// DELETE /api/bildirimler/:id -> tek bildirim sil
+router.delete('/:id', tokenDogrula, (req, res) => {
+    db.prepare('DELETE FROM bildirimler WHERE id = ? AND kullanici_id = ?').run(req.params.id, req.kullanici.id);
+    res.json({ mesaj: 'Bildirim silindi.' });
+});
+
+// DELETE /api/bildirimler -> tum bildirimleri sil
+router.delete('/', tokenDogrula, (req, res) => {
+    db.prepare('DELETE FROM bildirimler WHERE kullanici_id = ?').run(req.kullanici.id);
+    res.json({ mesaj: 'Tüm bildirimler silindi.' });
 });
 
 module.exports = router;

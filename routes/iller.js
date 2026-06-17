@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../database/db');
 const { tokenDogrula, adminVeyaYardimci } = require('../middleware/auth');
+const { kayitFormatla } = require('../middleware/format');
 const router = express.Router();
 
 // Bir kullanicinin gorebilecegi il id'lerini dondurur
@@ -89,6 +90,10 @@ router.put('/:id', tokenDogrula, (req, res) => {
         baskan_ad_soyad, baskan_telefon, baskan_tc, baskan_foto,
         instagram_url, twitter_url, facebook_url, tiktok_url
     } = req.body;
+
+    // Formatla
+    const f = kayitFormatla({ baskan_ad_soyad, baskan_telefon, instagram_url, twitter_url, facebook_url, tiktok_url });
+
     try {
         const sonuc = db.prepare(`
             UPDATE iller SET
@@ -102,8 +107,8 @@ router.put('/:id', tokenDogrula, (req, res) => {
                 tiktok_url      = COALESCE(?, tiktok_url)
             WHERE id = ?
         `).run(
-            baskan_ad_soyad ?? null, baskan_telefon ?? null, baskan_tc ?? null, baskan_foto ?? null,
-            instagram_url ?? null, twitter_url ?? null, facebook_url ?? null, tiktok_url ?? null,
+            f.baskan_ad_soyad ?? null, f.baskan_telefon ?? null, baskan_tc ?? null, baskan_foto ?? null,
+            f.instagram_url ?? null, f.twitter_url ?? null, f.facebook_url ?? null, f.tiktok_url ?? null,
             id
         );
         if (sonuc.changes === 0) return res.status(404).json({ hata: 'İl bulunamadı.' });
@@ -128,9 +133,10 @@ router.post('/toplu', tokenDogrula, (req, res) => {
         if (!s.id) continue;
         const ilId = parseInt(s.id);
         if (izinli && !izinli.has(ilId)) continue;
+        const f = kayitFormatla(s);
         const sonuc = guncelle.run(
-            s.baskan_ad_soyad || null, s.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
-            s.instagram_url || null, s.twitter_url || null, s.facebook_url || null, s.tiktok_url || null,
+            f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
+            f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null,
             ilId
         );
         if (sonuc.changes > 0) guncellenen++;

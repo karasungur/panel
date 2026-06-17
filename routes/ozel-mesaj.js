@@ -115,4 +115,25 @@ router.get('/okunmamis/toplam', tokenDogrula, (req, res) => {
     res.json({ okunmamis: s });
 });
 
+// DELETE /api/ozel-mesaj/mesaj/:id -> tek bir mesaj sil (sadece kendi gonderdigimi silebilirim)
+router.delete('/mesaj/:id', tokenDogrula, (req, res) => {
+    const m = db.prepare('SELECT * FROM ozel_mesajlar WHERE id = ?').get(req.params.id);
+    if (!m) return res.status(404).json({ hata: 'Mesaj bulunamadı.' });
+    if (m.gonderen_id !== req.kullanici.id && m.alici_id !== req.kullanici.id) {
+        return res.status(403).json({ hata: 'Yetkiniz yok.' });
+    }
+    db.prepare('DELETE FROM ozel_mesajlar WHERE id = ?').run(req.params.id);
+    res.json({ mesaj: 'Mesaj silindi.' });
+});
+
+// DELETE /api/ozel-mesaj/sohbet/:kisi_id -> tum sohbeti sil (benim icin)
+router.delete('/sohbet/:kisi_id', tokenDogrula, (req, res) => {
+    const kisiId = parseInt(req.params.kisi_id);
+    const benId = req.kullanici.id;
+    db.prepare(`DELETE FROM ozel_mesajlar WHERE
+        (gonderen_id = ? AND alici_id = ?) OR (gonderen_id = ? AND alici_id = ?)`)
+        .run(benId, kisiId, kisiId, benId);
+    res.json({ mesaj: 'Sohbet silindi.' });
+});
+
 module.exports = router;

@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../database/db');
 const { tokenDogrula, adminVeyaYardimci } = require('../middleware/auth');
+const { kayitFormatla } = require('../middleware/format');
 const router = express.Router();
 
 function kullanicininIlleri(kullaniciId) {
@@ -52,6 +53,10 @@ router.put('/:id', tokenDogrula, (req, res) => {
         ilce_adi, baskan_ad_soyad, baskan_telefon, baskan_tc, baskan_foto,
         instagram_url, twitter_url, facebook_url, tiktok_url
     } = req.body;
+
+    // Formatla
+    const f = kayitFormatla({ baskan_ad_soyad, baskan_telefon, instagram_url, twitter_url, facebook_url, tiktok_url });
+
     try {
         db.prepare(`
             UPDATE ilceler SET
@@ -66,8 +71,8 @@ router.put('/:id', tokenDogrula, (req, res) => {
                 tiktok_url      = COALESCE(?, tiktok_url)
             WHERE id = ?
         `).run(
-            ilce_adi ?? null, baskan_ad_soyad ?? null, baskan_telefon ?? null, baskan_tc ?? null, baskan_foto ?? null,
-            instagram_url ?? null, twitter_url ?? null, facebook_url ?? null, tiktok_url ?? null,
+            ilce_adi ?? null, f.baskan_ad_soyad ?? null, f.baskan_telefon ?? null, baskan_tc ?? null, baskan_foto ?? null,
+            f.instagram_url ?? null, f.twitter_url ?? null, f.facebook_url ?? null, f.tiktok_url ?? null,
             parseInt(req.params.id)
         );
         res.json({ mesaj: 'İlçe güncellendi.' });
@@ -105,18 +110,19 @@ router.post('/toplu', tokenDogrula, (req, res) => {
     let guncellenen = 0, eklenen = 0, hata = 0;
     for (const s of satirlar) {
         try {
+            const f = kayitFormatla(s);
             if (s.id) {
                 const sonuc = guncelle.run(
-                    s.baskan_ad_soyad || null, s.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
-                    s.instagram_url || null, s.twitter_url || null, s.facebook_url || null, s.tiktok_url || null,
+                    f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
+                    f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null,
                     parseInt(s.id), parseInt(il_id)
                 );
                 if (sonuc.changes > 0) guncellenen++;
             } else if (s.ilce_adi && s.ilce_adi.trim()) {
                 ekle.run(
                     parseInt(il_id), s.ilce_adi.trim(),
-                    s.baskan_ad_soyad || null, s.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
-                    s.instagram_url || null, s.twitter_url || null, s.facebook_url || null, s.tiktok_url || null
+                    f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
+                    f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null
                 );
                 eklenen++;
             }
