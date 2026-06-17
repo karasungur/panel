@@ -20,17 +20,46 @@ try {
             gorev_adi TEXT,
             renk TEXT DEFAULT '#24467c',
             profil_foto TEXT,
+            son_giris DATETIME,
             olusturulma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
         )`);
-        db.exec(`INSERT INTO kullanicilar_yeni SELECT * FROM kullanicilar`);
+        // Eski sutunlardan kopyala (son_giris kolonu eski tabloda yoksa NULL alir)
+        const eskiKolonlar = db.prepare("PRAGMA table_info(kullanicilar)").all().map(c=>c.name);
+        const ortakKolonlar = ['id','kullanici_adi','sifre','rol','ad_soyad','gorev_adi','renk','profil_foto','olusturulma_tarihi'].filter(c=>eskiKolonlar.includes(c));
+        db.exec(`INSERT INTO kullanicilar_yeni (${ortakKolonlar.join(',')}) SELECT ${ortakKolonlar.join(',')} FROM kullanicilar`);
         db.exec(`DROP TABLE kullanicilar`);
         db.exec(`ALTER TABLE kullanicilar_yeni RENAME TO kullanicilar`);
         db.exec('COMMIT');
         db.exec('PRAGMA foreign_keys = ON;');
         console.log('Migration tamamlandi.');
+    } else {
+        // son_giris kolonu yoksa ekle
+        const kolonlar = db.prepare("PRAGMA table_info(kullanicilar)").all().map(c=>c.name);
+        if (!kolonlar.includes('son_giris')) {
+            db.exec("ALTER TABLE kullanicilar ADD COLUMN son_giris DATETIME");
+            console.log('Migration: son_giris kolonu eklendi.');
+        }
     }
 } catch (e) {
     console.log('Migration atlandi (yeni veritabani):', e.message);
+}
+
+// MIGRATION 2: gorevler tablosuna oncelik/kategori/son_tarih/tekrar/olusturan_id ekle
+try {
+    const sutunlar = db.prepare("PRAGMA table_info(gorevler)").all().map(s => s.name);
+    const eklenecek = [];
+    if (!sutunlar.includes('oncelik')) eklenecek.push("ALTER TABLE gorevler ADD COLUMN oncelik TEXT NOT NULL DEFAULT 'normal'");
+    if (!sutunlar.includes('kategori')) eklenecek.push("ALTER TABLE gorevler ADD COLUMN kategori TEXT DEFAULT 'diger'");
+    if (!sutunlar.includes('son_tarih')) eklenecek.push("ALTER TABLE gorevler ADD COLUMN son_tarih DATETIME");
+    if (!sutunlar.includes('tekrar')) eklenecek.push("ALTER TABLE gorevler ADD COLUMN tekrar TEXT DEFAULT 'tek'");
+    if (!sutunlar.includes('olusturan_id')) eklenecek.push("ALTER TABLE gorevler ADD COLUMN olusturan_id INTEGER");
+    if (eklenecek.length) {
+        console.log('Migration: gorevler tablosuna yeni sutunlar ekleniyor...');
+        eklenecek.forEach(sql => db.exec(sql));
+        console.log('Gorev migration tamamlandi (' + eklenecek.length + ' sutun eklendi).');
+    }
+} catch (e) {
+    console.log('Gorev migration atlandi:', e.message);
 }
 
 const adminKullaniciAdi = process.env.ADMIN_KULLANICI_ADI || 'admin';

@@ -100,6 +100,9 @@ router.post('/login', (req, res) => {
 
     basariliGiris(ip);
 
+    // Son giris zamanini kaydet
+    db.prepare('UPDATE kullanicilar SET son_giris = CURRENT_TIMESTAMP WHERE id = ?').run(kullanici.id);
+
     const token = jwt.sign(
         { id: kullanici.id, kullanici_adi: kullanici.kullanici_adi, rol: kullanici.rol },
         JWT_SECRET, { expiresIn: '8h' }

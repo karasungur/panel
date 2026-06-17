@@ -14,6 +14,8 @@ const ayarlarRouter = require('./routes/ayarlar');
 const gorevlerRouter = require('./routes/gorevler');
 const chatRouter = require('./routes/chat');
 const notlarRouter = require('./routes/notlar');
+const bildirimlerRouter = require('./routes/bildirimler');
+const ozelMesajRouter = require('./routes/ozel-mesaj');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -42,6 +44,8 @@ app.use('/api/ayarlar', ayarlarRouter);
 app.use('/api/gorevler', gorevlerRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/notlar', notlarRouter);
+app.use('/api/bildirimler', bildirimlerRouter);
+app.use('/api/ozel-mesaj', ozelMesajRouter);
 
 app.get('/api', (req, res) => {
     res.json({ durum: 'Sosyal Medya Takip Paneli API çalışıyor.' });

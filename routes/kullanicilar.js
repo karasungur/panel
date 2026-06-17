@@ -17,7 +17,7 @@ function adminEtkilemeKontrolu(req, res, hedefId, izinVer) {
 
 router.get('/', tokenDogrula, adminVeyaYardimci, (req, res) => {
     const kullanicilar = db.prepare(`
-        SELECT id, kullanici_adi, rol, ad_soyad, gorev_adi, renk, profil_foto, olusturulma_tarihi
+        SELECT id, kullanici_adi, rol, ad_soyad, gorev_adi, renk, profil_foto, son_giris, olusturulma_tarihi
         FROM kullanicilar ORDER BY id
     `).all();
     const ilSorgu = db.prepare(`
@@ -33,7 +33,7 @@ router.get('/', tokenDogrula, adminVeyaYardimci, (req, res) => {
 });
 
 router.get('/ben', tokenDogrula, (req, res) => {
-    const k = db.prepare('SELECT id, kullanici_adi, rol, ad_soyad, gorev_adi, renk, profil_foto FROM kullanicilar WHERE id = ?').get(req.kullanici.id);
+    const k = db.prepare('SELECT id, kullanici_adi, rol, ad_soyad, gorev_adi, renk, profil_foto, son_giris FROM kullanicilar WHERE id = ?').get(req.kullanici.id);
     const iller = db.prepare(`SELECT i.id, i.il_adi FROM kullanici_iller ki JOIN iller i ON ki.il_id=i.id WHERE ki.kullanici_id=? ORDER BY i.plaka`).all(req.kullanici.id);
     res.json({ ...k, iller });
 });
