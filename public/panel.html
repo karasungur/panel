@@ -166,6 +166,9 @@ tr:hover td{background:var(--surface-low)}
 .durum-rozet{padding:4px 11px;border-radius:99px;font-size:11px;font-weight:700}
 .durum-bekliyor{background:#fff3cd;color:#856404}
 .durum-tamam{background:var(--success-bg);color:var(--success)}
+.indir-secenek{display:block;width:100%;background:transparent;border:none;color:var(--on-surface);padding:9px 14px;font-family:inherit;font-size:13px;cursor:pointer;text-align:left;border-radius:8px;transition:.15s}
+.indir-secenek:hover{background:var(--surface-low);color:var(--primary)}
+
 .uyari-toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--primary);color:#fff;padding:13px 24px;border-radius:10px;font-size:14px;z-index:2000;display:none;box-shadow:0 8px 30px rgba(0,0,0,.3)}
 
 /* BILDIRIM CANI */
@@ -257,6 +260,10 @@ tr:hover td{background:var(--surface-low)}
 .s-mesaj.benim{align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:4px}
 .s-mesaj.karsi{align-self:flex-start;background:#fff;color:var(--on-surface);border:1px solid var(--outline-variant);border-bottom-left-radius:4px}
 .s-mesaj .s-zaman{font-size:9px;opacity:.7;margin-top:2px}
+.s-okundu{font-size:10px;opacity:.75;margin-left:3px;letter-spacing:-2px}
+.s-okundu.okundu-evet{color:#7dd3fc;opacity:1}
+.s-mesaj.benim .s-okundu{color:#cbd5e1}
+.s-mesaj.benim .s-okundu.okundu-evet{color:#7dd3fc}
 .yaziyor-gosterge{align-self:flex-start;padding:8px 14px;background:#fff;border:1px solid var(--outline-variant);border-radius:14px;font-size:12px;color:var(--secondary);font-style:italic;display:flex;align-items:center;gap:6px}
 .yaziyor-gosterge .nokta{display:flex;gap:3px}
 .yaziyor-gosterge .nokta span{width:5px;height:5px;border-radius:50%;background:var(--secondary);animation:yaziyorNokta 1.4s infinite}
@@ -464,7 +471,12 @@ tr:hover td{background:var(--surface-low)}
           <span><i class="renk-kutu" style="background:#6f8ec0"></i> Sorumlu olduğunuz iller</span>
           <span><i class="renk-kutu" style="background:#d4dae6"></i> Diğer iller</span>
         </div>
-        <div class="harita-ozet">Sistemde <b id="ozet-il">-</b> il ve <b id="ozet-ilce">-</b> ilçe kayıtlı.</div>
+        <div class="kart-grup" style="grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px">
+          <div class="kart"><div class="kart-etiket">Toplam İl</div><div class="deger" id="ozet-il">-</div></div>
+          <div class="kart"><div class="kart-etiket">Toplam İlçe</div><div class="deger" id="ozet-ilce">-</div></div>
+          <div class="kart"><div class="kart-etiket">İl Başkanı Atanan</div><div class="deger" id="ozet-baskanli-il" style="color:var(--primary)">-</div></div>
+          <div class="kart"><div class="kart-etiket">İlçe Başkanı Atanan</div><div class="deger" id="ozet-baskanli-ilce" style="color:var(--primary)">-</div></div>
+        </div>
       </div>
       <!-- Harita altinda ilce paneli -->
       <div class="bolum" id="harita-ilce-paneli" style="display:none;margin-top:20px">
@@ -472,6 +484,14 @@ tr:hover td{background:var(--surface-low)}
           <h2 id="harita-ilce-baslik">İlçeler</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-ikincil" onclick="haritaIlceKapat()">Kapat</button>
+            <div class="indir-wrap" style="position:relative;display:inline-block">
+              <button class="btn btn-ikincil" onclick="indirMenuTogla('tek-il-indir-menu')"><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Bu İli İndir ▾</button>
+              <div class="indir-menu" id="tek-il-indir-menu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--outline-variant);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:30;min-width:220px;padding:6px;margin-top:4px">
+                <button class="indir-secenek" onclick="tekIlIndir('il')">📋 Sadece il bilgileri</button>
+                <button class="indir-secenek" onclick="tekIlIndir('birlesik')">📋 İl + ilçeler (birleşik)</button>
+                <button class="indir-secenek" onclick="tekIlIndir('ilce')">🏛️ Sadece ilçeler</button>
+              </div>
+            </div>
             <button class="btn" onclick="haritaIlceDuzenle()">İl Bilgilerini Düzenle</button>
           </div>
         </div>
@@ -489,7 +509,15 @@ tr:hover td{background:var(--surface-low)}
         <div class="bolum-baslik">
           <h2>İller</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-ikincil" onclick="excelDisaAktar('il')"><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Excel İndir</button>
+            <div class="indir-wrap" style="position:relative;display:inline-block">
+              <button class="btn btn-ikincil" onclick="indirMenuTogla('il-indir-menu')"><svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>Excel İndir ▾</button>
+              <div class="indir-menu" id="il-indir-menu" style="display:none;position:absolute;top:100%;right:0;background:var(--surface);border:1px solid var(--outline-variant);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:30;min-width:240px;padding:6px;margin-top:4px">
+                <button class="indir-secenek" onclick="excelDisaAktar('il')">📋 Tüm illeri indir</button>
+                <button class="indir-secenek" onclick="excelDisaAktar('birlesik')">📋 Tüm il ve ilçeleri (birleşik)</button>
+                <button class="indir-secenek" onclick="ilSeciminiIndir()">✓ Seçili illeri indir...</button>
+                <button class="indir-secenek" onclick="excelDisaAktar('ilce')">🏛️ Sadece ilçeleri indir</button>
+              </div>
+            </div>
             <button class="btn btn-ikincil" id="il-excel-btn" onclick="excelModalAc('il')"><svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>Excel Yükle</button>
             <button class="btn" onclick="topluIlModalAc()"><svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>Toplu Düzenle</button>
           </div>
@@ -779,9 +807,10 @@ tr:hover td{background:var(--surface-low)}
   <p style="font-size:13px;color:var(--secondary);margin-bottom:14px">Excel dosyanızı seçin. Sistem sütunları otomatik tanır. <a href="#" id="sablon-link" style="color:var(--primary-container);font-weight:600">Örnek şablon indir</a></p>
   <input type="file" id="excel-dosya" accept=".xlsx,.xls,.csv" onchange="excelOnizle()">
   <div id="excel-sonuc" style="margin-top:16px"></div>
-  <div id="excel-ai-bolum" style="display:none;margin-top:14px;padding:12px;background:#fef3c7;border-radius:10px;border-left:3px solid #d97706">
-    <p style="font-size:13px;color:#92400e;margin-bottom:8px">📋 Sonuçlar uygun değil mi? <b>Yapay zeka</b> ile farklı bir yapı denenebilir (Excel sırası farklıysa, sütun başlıkları yoksa veya karışıksa).</p>
-    <button class="kaydet" onclick="excelAiOnizle()" style="background:#d97706;width:100%">🤖 Yapay Zeka ile Yeniden Algıla</button>
+  <div id="excel-ai-bolum" style="display:none;margin-top:10px;text-align:center">
+    <button onclick="excelAiOnizle()" style="background:transparent;color:var(--primary);border:none;font-family:inherit;font-size:12px;cursor:pointer;text-decoration:underline;padding:4px 8px">
+      Sonuçlar yetersiz mi? Yapay zeka ile yeniden algıla
+    </button>
   </div>
   <div class="modal-btnlar"><button class="kaydet" id="excel-uygula-btn" onclick="excelUygula()" style="display:none">İçe Aktar</button><button class="iptal" onclick="modalKapat('excel-modal')">Kapat</button></div>
 </div></div>
@@ -851,7 +880,15 @@ async function haritayiYukle(){
   document.getElementById('kart-dolu').textContent = haritaVeri.filter(i=>i.baskan_ad_soyad).length;
   let ti=0; erisimli.forEach(i=>ti+=(i.ilce_sayisi||0));
   document.getElementById('kart-ilce').textContent = ti;
-  try{const ist=await apicagir('/api/iller/istatistik');document.getElementById('ozet-il').textContent=ist.toplamIl;document.getElementById('ozet-ilce').textContent=ist.toplamIlce;}catch(e){}
+  try{
+    const ist=await apicagir('/api/iller/istatistik');
+    document.getElementById('ozet-il').textContent=ist.toplamIl;
+    document.getElementById('ozet-ilce').textContent=ist.toplamIlce;
+    const eIlce = document.getElementById('ozet-baskanli-il');
+    if (eIlce) eIlce.textContent = ist.baskanliIl != null ? ist.baskanliIl : '-';
+    const eIlceB = document.getElementById('ozet-baskanli-ilce');
+    if (eIlceB) eIlceB.textContent = ist.baskanliIlce != null ? ist.baskanliIlce : '-';
+  }catch(e){}
   if(!haritaYuklendi){
     try{
       const r=await fetch('/turkiye.svg');
@@ -1391,14 +1428,14 @@ async function excelAiOnizle(){
   const dosya = window._excelDosyaCache;
   if(!dosya){toast('Önce bir dosya seçin.');return;}
   document.getElementById('excel-uygula-btn').style.display='none';
-  document.getElementById('excel-sonuc').innerHTML='<p style="color:var(--secondary)">🤖 Yapay zeka analiz ediyor... (10-30 saniye sürebilir)</p>';
+  document.getElementById('excel-sonuc').innerHTML='<p style="color:var(--secondary)">Yapay zeka analiz ediyor... (10-30 saniye sürebilir)</p>';
   const s=await apicagir('/api/excel/ai-onizle','POST',{dosya,tip:excelTip});
   if(s.hata){
     document.getElementById('excel-sonuc').innerHTML='<p style="color:var(--error)">'+s.hata+'</p>';
     return;
   }
   excelSonuclar=s.sonuclar;
-  let h='<div style="background:#fef3c7;color:#92400e;padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px">🤖 <b>Yapay zeka</b> ile <b>'+s.toplam+'</b> kayıt çıkarıldı.</div>';
+  let h='<div style="background:var(--success-bg);color:var(--success);padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px"><b>'+s.toplam+'</b> kayıt eşleştirildi.</div>';
   if(s.sonuclar.length){
     h+='<p style="font-size:12px;color:var(--secondary);margin-bottom:8px">İlk birkaç kayıt önizleme:</p>';
     h+='<div style="max-height:200px;overflow-y:auto;background:var(--surface-low);border-radius:8px;padding:10px;font-size:11px">';
@@ -1424,10 +1461,83 @@ async function excelUygula(){
   illeriYukle();
   if(seciliIlId)ilSecVeIlceleriGoster(seciliIlId,seciliIlAdi);
 }
-async function excelDisaAktar(tip){
-  const r=await fetch('/api/excel/disa-aktar?tip='+tip,{headers:{'Authorization':'Bearer '+token}});
+async function excelDisaAktar(tip, ilIds){
+  // Menüleri kapat
+  document.querySelectorAll('.indir-menu').forEach(m=>m.style.display='none');
+  let url = '/api/excel/disa-aktar?tip='+tip;
+  if(ilIds && ilIds.length) url += '&il_ids=' + ilIds.join(',');
+  const r=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
+  if(!r.ok){toast('Excel oluşturulamadı.');return;}
   const blob=await r.blob(); const u=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=u; a.download=(tip==='il'?'iller':'ilceler')+'.xlsx'; a.click(); URL.revokeObjectURL(u);
+  const a=document.createElement('a'); a.href=u;
+  let dosyaAdi = 'iller.xlsx';
+  if (tip === 'ilce') dosyaAdi = 'ilceler.xlsx';
+  else if (tip === 'birlesik') dosyaAdi = 'iller-ve-ilceler.xlsx';
+  a.download = dosyaAdi; a.click(); URL.revokeObjectURL(u);
+  toast('Excel indirildi.');
+}
+
+function indirMenuTogla(id){
+  const menu = document.getElementById(id);
+  const aktif = menu.style.display === 'block';
+  document.querySelectorAll('.indir-menu').forEach(m => m.style.display = 'none');
+  menu.style.display = aktif ? 'none' : 'block';
+}
+
+// Menü dışına tıklayınca kapat
+document.addEventListener('click', e => {
+  if (!e.target.closest('.indir-wrap')) {
+    document.querySelectorAll('.indir-menu').forEach(m => m.style.display = 'none');
+  }
+});
+
+// İl seçim modalı - hangi illeri indirmek istiyorsun?
+async function ilSeciminiIndir(){
+  document.querySelectorAll('.indir-menu').forEach(m=>m.style.display='none');
+  const iller = await apicagir('/api/iller');
+  if(!Array.isArray(iller) || !iller.length){toast('İl listesi alınamadı.');return;}
+  // Önceki modal varsa kaldır
+  const eski = document.getElementById('il-secim-modal'); if(eski) eski.remove();
+  const m = document.createElement('div');
+  m.id = 'il-secim-modal';
+  m.className = 'modal-bg aktif';
+  m.innerHTML = '<div class="modal genis">'+
+    '<h3>İl Seçimi</h3>'+
+    '<p style="font-size:13px;color:var(--secondary);margin-bottom:12px">İndirmek istediğiniz illeri seçin:</p>'+
+    '<div style="display:flex;gap:8px;margin-bottom:12px">'+
+      '<button class="btn btn-ikincil" onclick="ilSecHepsi(true)" style="font-size:12px;padding:6px 12px">Hepsini Seç</button>'+
+      '<button class="btn btn-ikincil" onclick="ilSecHepsi(false)" style="font-size:12px;padding:6px 12px">Seçimi Temizle</button>'+
+    '</div>'+
+    '<div style="max-height:400px;overflow-y:auto;border:1px solid var(--outline-variant);border-radius:8px;padding:10px"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px">'+
+      iller.map(il => '<label style="display:flex;align-items:center;gap:6px;padding:4px;font-size:13px;cursor:pointer"><input type="checkbox" class="il-secim-cb" value="'+il.id+'"><span>'+il.plaka+' - '+il.il_adi+'</span></label>').join('')+
+    '</div></div>'+
+    '<div class="modal-btnlar" style="margin-top:14px">'+
+      '<button class="kaydet" onclick="ilSecimGonder(\'il\')">İl Bilgilerini İndir</button>'+
+      '<button class="kaydet" onclick="ilSecimGonder(\'birlesik\')" style="background:var(--primary-container)">İl + İlçeleri (Birleşik) İndir</button>'+
+      '<button class="iptal" onclick="document.getElementById(\'il-secim-modal\').remove()">İptal</button>'+
+    '</div>'+
+  '</div>';
+  document.body.appendChild(m);
+}
+
+function ilSecHepsi(secili){
+  document.querySelectorAll('.il-secim-cb').forEach(cb => cb.checked = secili);
+}
+
+async function ilSecimGonder(tip){
+  const secili = Array.from(document.querySelectorAll('.il-secim-cb:checked')).map(cb => parseInt(cb.value));
+  if(!secili.length){toast('Lütfen en az 1 il seçin.');return;}
+  await excelDisaAktar(tip, secili);
+  document.getElementById('il-secim-modal').remove();
+}
+
+// Haritada secili ilin Excel'ini indir
+async function tekIlIndir(tip){
+  if (!haritaSeciliIl || !haritaSeciliIl.id) {
+    toast('Önce bir il seçin.');
+    return;
+  }
+  await excelDisaAktar(tip, [haritaSeciliIl.id]);
 }
 function modalKapat(id){document.getElementById(id).classList.remove('aktif');}
 function cikisYap(){localStorage.clear();window.location.href='/';}
@@ -1748,8 +1858,20 @@ function sohbetMesajEkle(container, msj, kisiId){
   d.className = 's-mesaj-wrap ' + (benim ? 'benim-wrap' : 'karsi-wrap');
   d.dataset.id = msj.id;
   const t = new Date((msj.tarih||'').replace(' ','T')+'Z').toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+  // Okundu gostergesi sadece kendi mesajlarimizda
+  let okunduIkon = '';
+  if (benim) {
+    if (msj.okundu) {
+      // Cift mavi tik
+      okunduIkon = ' <span class="s-okundu okundu-evet" title="Okundu">✓✓</span>';
+    } else {
+      // Tek gri tik
+      okunduIkon = ' <span class="s-okundu" title="Gönderildi">✓</span>';
+    }
+  }
   d.innerHTML = '<div class="s-mesaj '+(benim?'benim':'karsi')+'">'+
-    '<div>'+msj.metin.replace(/</g,'&lt;')+'</div><div class="s-zaman">'+t+'</div>'+
+    '<div>'+msj.metin.replace(/</g,'&lt;')+'</div>'+
+    '<div class="s-zaman">'+t+okunduIkon+'</div>'+
     '</div>'+
     '<button class="s-mesaj-sil" onclick="mesajSil('+msj.id+','+kisiId+')" title="Mesajı sil">×</button>';
   // Yaziyor satiri varsa onun ustune ekle
