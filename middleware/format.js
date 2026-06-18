@@ -32,8 +32,8 @@ function basHarfBuyuk(kelime) {
 // Telefon formatla
 // "5551234567" -> "0555-123-45-67"
 // "05551234567" -> "0555-123-45-67"
-// "905551234567" -> "+90 555-123-45-67"
-// "+905551234567" -> "+90 555-123-45-67"
+// "905551234567" -> "0555-123-45-67"
+// "+905551234567" -> "0555-123-45-67"
 // "(555) 123 4567" -> "0555-123-45-67"
 function telefonFormatla(metin) {
     if (!metin) return metin;
@@ -43,28 +43,22 @@ function telefonFormatla(metin) {
     // Sadece rakamlari al
     let rakam = m.replace(/\D/g, '');
 
-    // Uluslararasi format kontrol
-    let onek = '0';
+    // 90 ile basliyorsa kaldir (Turkiye kodu)
     if (rakam.startsWith('90') && rakam.length === 12) {
-        onek = '+90 ';
         rakam = rakam.slice(2);
     } else if (rakam.startsWith('0') && rakam.length === 11) {
+        // 0 ile basliyorsa kaldir, sonra 0 ekleyecegiz
         rakam = rakam.slice(1);
-    } else if (rakam.length === 10) {
-        // 0 olmadan girilmis
-    } else {
-        // Format taninamadi, oldugu gibi don
-        return m;
     }
 
     if (rakam.length !== 10) return m;
 
-    // 5XX-XXX-XX-XX
+    // 0XXX-XXX-XX-XX
     const p1 = rakam.slice(0, 3);
     const p2 = rakam.slice(3, 6);
     const p3 = rakam.slice(6, 8);
     const p4 = rakam.slice(8, 10);
-    return onek + p1 + '-' + p2 + '-' + p3 + '-' + p4;
+    return '0' + p1 + '-' + p2 + '-' + p3 + '-' + p4;
 }
 
 // URL formatla - kullanici adi verilmisse basina ekler
