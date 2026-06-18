@@ -38,6 +38,9 @@ router.post('/', tokenDogrula, (req, res) => {
             .run(il_id, ilce_adi);
         res.status(201).json({ mesaj: 'İlçe eklendi.', id: sonuc.lastInsertRowid });
     } catch (err) {
+        if (err.message.includes('UNIQUE')) {
+            return res.status(409).json({ hata: 'Bu ilçe bu il altında zaten kayıtlı.' });
+        }
         res.status(500).json({ hata: 'Sunucu hatası.', detay: err.message });
     }
 });
@@ -77,6 +80,9 @@ router.put('/:id', tokenDogrula, (req, res) => {
         );
         res.json({ mesaj: 'İlçe güncellendi.' });
     } catch (err) {
+        if (err.message.includes('UNIQUE')) {
+            return res.status(409).json({ hata: 'Bu ilçe adı bu il altında zaten kullanılıyor.' });
+        }
         res.status(500).json({ hata: 'Sunucu hatası.', detay: err.message });
     }
 });
@@ -108,26 +114,28 @@ router.post('/toplu', tokenDogrula, (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
     let guncellenen = 0, eklenen = 0, hata = 0;
-    for (const s of satirlar) {
-        try {
-            const f = kayitFormatla(s);
-            if (s.id) {
-                const sonuc = guncelle.run(
-                    f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
-                    f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null,
-                    parseInt(s.id), parseInt(il_id)
-                );
-                if (sonuc.changes > 0) guncellenen++;
-            } else if (s.ilce_adi && s.ilce_adi.trim()) {
-                ekle.run(
-                    parseInt(il_id), s.ilce_adi.trim(),
-                    f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
-                    f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null
-                );
-                eklenen++;
-            }
-        } catch(e) { hata++; }
-    }
+    db.withTransaction(() => {
+        for (const s of satirlar) {
+            try {
+                const f = kayitFormatla(s);
+                if (s.id) {
+                    const sonuc = guncelle.run(
+                        f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
+                        f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null,
+                        parseInt(s.id), parseInt(il_id)
+                    );
+                    if (sonuc.changes > 0) guncellenen++;
+                } else if (s.ilce_adi && s.ilce_adi.trim()) {
+                    ekle.run(
+                        parseInt(il_id), s.ilce_adi.trim(),
+                        f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
+                        f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null
+                    );
+                    eklenen++;
+                }
+            } catch(e) { hata++; }
+        }
+    });
     res.json({ mesaj: 'Toplu güncelleme tamamlandı.', guncellenen, eklenen, hata });
 });
 

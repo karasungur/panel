@@ -2,8 +2,16 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../database/db');
-const { JWT_SECRET } = require('../middleware/auth');
+const { JWT_SECRET, tokenDogrula } = require('../middleware/auth');
 const router = express.Router();
+
+function uretimOrtamiMi() {
+    return process.env.NODE_ENV === 'production';
+}
+
+if (uretimOrtamiMi() && !(process.env.SAFE_KEY || '').trim()) {
+    throw new Error('Production ortaminda SAFE_KEY zorunludur.');
+}
 
 // ============ BRUTE FORCE KORUMASI ============
 const yanlisDenemeler = new Map();
@@ -12,10 +20,7 @@ const KILIT_SURE_MS = 15 * 60 * 1000;
 const SAYACI_SIFIRLA_MS = 30 * 60 * 1000;
 
 function istemciIP(req) {
-    return req.headers['x-forwarded-for']?.split(',')[0].trim()
-        || req.headers['x-real-ip']
-        || req.socket.remoteAddress
-        || 'bilinmiyor';
+    return String(req.ip || req.socket.remoteAddress || 'bilinmiyor').replace(/^::ffff:/, '');
 }
 
 function kilitMi(ip) {
@@ -104,7 +109,12 @@ router.post('/login', (req, res) => {
     db.prepare('UPDATE kullanicilar SET son_giris = CURRENT_TIMESTAMP WHERE id = ?').run(kullanici.id);
 
     const token = jwt.sign(
-        { id: kullanici.id, kullanici_adi: kullanici.kullanici_adi, rol: kullanici.rol },
+        {
+            id: kullanici.id,
+            kullanici_adi: kullanici.kullanici_adi,
+            rol: kullanici.rol,
+            tokenVersion: Number(kullanici.token_version) || 0
+        },
         JWT_SECRET, { expiresIn: '8h' }
     );
 
@@ -121,6 +131,15 @@ router.post('/login', (req, res) => {
             profil_foto: kullanici.profil_foto
         }
     });
+});
+
+router.get('/me', tokenDogrula, (req, res) => {
+    const iller = db.prepare(`
+        SELECT i.id, i.il_adi FROM kullanici_iller ki
+        JOIN iller i ON ki.il_id = i.id
+        WHERE ki.kullanici_id = ? ORDER BY i.plaka
+    `).all(req.kullanici.id);
+    res.json({ ...req.kullanici, iller });
 });
 
 module.exports = router;

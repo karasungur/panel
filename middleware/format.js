@@ -107,6 +107,36 @@ function urlFormatla(deger, platform) {
     return 'https://' + domain + '/' + m;
 }
 
+function tcMaskele(metin) {
+    if (!metin) return metin;
+    const rakam = String(metin).replace(/\D/g, '');
+    if (rakam.length !== 11) return String(metin);
+    return '*******' + rakam.slice(-4);
+}
+
+function telefonMaskele(metin) {
+    if (!metin) return metin;
+    const formatli = telefonFormatla(metin);
+    const rakam = String(formatli).replace(/\D/g, '');
+    if (rakam.length < 10) return String(formatli);
+    return '0' + rakam.slice(-10, -7) + '-***-**-' + rakam.slice(-2);
+}
+
+function hassasAlanMaskele(alan, deger) {
+    if (deger === null || deger === undefined || deger === '') return deger;
+    if (alan === 'baskan_tc') return tcMaskele(deger);
+    if (alan === 'baskan_telefon') return telefonMaskele(deger);
+    return deger;
+}
+
+function kayitMaskele(kayit) {
+    if (!kayit || typeof kayit !== 'object') return kayit;
+    const k = { ...kayit };
+    k.baskan_telefon = hassasAlanMaskele('baskan_telefon', k.baskan_telefon);
+    k.baskan_tc = hassasAlanMaskele('baskan_tc', k.baskan_tc);
+    return k;
+}
+
 // Toplu formatla - bir kayit objesinin tum alanlarini formatla
 function kayitFormatla(kayit) {
     if (!kayit || typeof kayit !== 'object') return kayit;
@@ -126,5 +156,9 @@ module.exports = {
     adSoyadFormatla,
     telefonFormatla,
     urlFormatla,
+    tcMaskele,
+    telefonMaskele,
+    hassasAlanMaskele,
+    kayitMaskele,
     kayitFormatla
 };

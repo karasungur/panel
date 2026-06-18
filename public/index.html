@@ -49,21 +49,21 @@ input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0
       <label>Kullanıcı Adı</label>
       <div class="input-sar">
         <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-        <input type="text" id="kullanici_adi" placeholder="Kullanıcı adınız" autocomplete="off">
+        <input type="text" id="kullanici_adi" placeholder="Kullanıcı adınız" autocomplete="username">
       </div>
     </div>
     <div class="alan">
       <label>Şifre</label>
       <div class="input-sar">
         <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
-        <input type="password" id="sifre" placeholder="Şifreniz">
+        <input type="password" id="sifre" placeholder="Şifreniz" autocomplete="current-password">
       </div>
     </div>
     <div class="alan">
       <label>Özel Anahtar</label>
       <div class="input-sar">
         <svg viewBox="0 0 24 24"><path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
-        <input type="password" id="ozel_anahtar" placeholder="Özel anahtar">
+        <input type="password" id="ozel_anahtar" placeholder="Özel anahtar" autocomplete="current-password">
       </div>
     </div>
     <button class="giris-btn" id="giris-btn" onclick="girisYap()">
@@ -82,6 +82,9 @@ input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0
 </div>
 <script>
 document.addEventListener('keydown',e=>{if(e.key==='Enter')girisYap();});
+async function yanitJsonOku(cevap){
+  try{return await cevap.json();}catch(e){return {};}
+}
 async function girisYap(){
   const kullanici_adi=document.getElementById('kullanici_adi').value.trim();
   const sifre=document.getElementById('sifre').value;
@@ -92,8 +95,8 @@ async function girisYap(){
   btn.disabled=true;
   try{
     const cevap=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kullanici_adi,sifre,ozel_anahtar})});
-    const veri=await cevap.json();
-    if(cevap.ok){
+    const veri=await yanitJsonOku(cevap);
+    if(cevap.ok&&veri.token&&veri.kullanici){
       localStorage.setItem('token',veri.token);
       localStorage.setItem('kullanici',JSON.stringify(veri.kullanici));
       window.location.href='/panel.html';

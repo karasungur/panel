@@ -1,6 +1,12 @@
 -- ============================================
--- SOSYAL MEDYA TAKIP PANELI - VERITABANI SEMASI (v3)
+-- SOSYAL MEDYA TAKIP PANELI - VERITABANI SEMASI (v4)
 -- ============================================
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    id TEXT PRIMARY KEY,
+    description TEXT NOT NULL DEFAULT '',
+    applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 
 CREATE TABLE IF NOT EXISTS kullanicilar (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -11,6 +17,7 @@ CREATE TABLE IF NOT EXISTS kullanicilar (
     gorev_adi TEXT,
     renk TEXT DEFAULT '#24467c',
     profil_foto TEXT,
+    token_version INTEGER NOT NULL DEFAULT 0 CHECK(token_version >= 0),
     son_giris DATETIME,
     olusturulma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -18,7 +25,7 @@ CREATE TABLE IF NOT EXISTS kullanicilar (
 CREATE TABLE IF NOT EXISTS iller (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     il_adi TEXT UNIQUE NOT NULL,
-    plaka INTEGER,
+    plaka INTEGER UNIQUE,
     baskan_ad_soyad TEXT,
     baskan_telefon TEXT,
     baskan_tc TEXT,
@@ -69,7 +76,8 @@ CREATE TABLE IF NOT EXISTS gorevler (
     tekrar TEXT DEFAULT 'tek' CHECK(tekrar IN ('tek','haftalik','aylik')),
     olusturan_id INTEGER,
     olusturulma_tarihi DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (kullanici_id) REFERENCES kullanicilar(id) ON DELETE CASCADE
+    FOREIGN KEY (kullanici_id) REFERENCES kullanicilar(id) ON DELETE CASCADE,
+    FOREIGN KEY (olusturan_id) REFERENCES kullanicilar(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS bildirimler (
@@ -93,7 +101,8 @@ CREATE TABLE IF NOT EXISTS mesajlar (
     ad_soyad TEXT,
     renk TEXT,
     metin TEXT NOT NULL,
-    tarih DATETIME DEFAULT CURRENT_TIMESTAMP
+    tarih DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (kullanici_id) REFERENCES kullanicilar(id) ON DELETE SET NULL
 );
 
 -- Ozel mesajlar (kullanici - kullanici)
@@ -113,7 +122,9 @@ CREATE TABLE IF NOT EXISTS yaziyor (
     kullanici_id INTEGER NOT NULL,
     alici_id INTEGER NOT NULL,
     son_zaman DATETIME DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (kullanici_id, alici_id)
+    PRIMARY KEY (kullanici_id, alici_id),
+    FOREIGN KEY (kullanici_id) REFERENCES kullanicilar(id) ON DELETE CASCADE,
+    FOREIGN KEY (alici_id) REFERENCES kullanicilar(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS notlar (
@@ -128,10 +139,21 @@ CREATE TABLE IF NOT EXISTS notlar (
 
 CREATE INDEX IF NOT EXISTS idx_notlar_kid ON notlar(kullanici_id);
 
+CREATE INDEX IF NOT EXISTS idx_kullanicilar_rol ON kullanicilar(rol);
 CREATE INDEX IF NOT EXISTS idx_ilceler_il_id ON ilceler(il_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ilceler_il_ad_unique ON ilceler(il_id, ilce_adi);
+CREATE INDEX IF NOT EXISTS idx_ilceler_il_ad ON ilceler(il_id, ilce_adi);
 CREATE INDEX IF NOT EXISTS idx_kullanici_iller_kid ON kullanici_iller(kullanici_id);
 CREATE INDEX IF NOT EXISTS idx_kullanici_iller_iid ON kullanici_iller(il_id);
 CREATE INDEX IF NOT EXISTS idx_gorevler_kid ON gorevler(kullanici_id);
+CREATE INDEX IF NOT EXISTS idx_gorevler_kullanici_durum_son ON gorevler(kullanici_id, durum, son_tarih);
+CREATE INDEX IF NOT EXISTS idx_gorevler_olusturan ON gorevler(olusturan_id);
+CREATE INDEX IF NOT EXISTS idx_bildirimler_kid_id ON bildirimler(kullanici_id, id DESC);
+CREATE INDEX IF NOT EXISTS idx_bildirimler_unread_id ON bildirimler(kullanici_id, okundu, id DESC);
 CREATE INDEX IF NOT EXISTS idx_mesajlar_tarih ON mesajlar(tarih);
 CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_kisiler ON ozel_mesajlar(gonderen_id, alici_id, id);
 CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_okunmamis ON ozel_mesajlar(alici_id, okundu);
+CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_alici_gonderen_id ON ozel_mesajlar(alici_id, gonderen_id, id);
+CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_gonderen_alici_id ON ozel_mesajlar(gonderen_id, alici_id, id);
+CREATE INDEX IF NOT EXISTS idx_yaziyor_alici ON yaziyor(alici_id, kullanici_id);
+CREATE INDEX IF NOT EXISTS idx_notlar_kid_guncel ON notlar(kullanici_id, guncellenme_tarihi DESC);

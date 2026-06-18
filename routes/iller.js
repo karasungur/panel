@@ -36,11 +36,18 @@ router.get('/harita', tokenDogrula, (req, res) => {
     }
     const ilceSay = {};
     db.prepare('SELECT il_id, COUNT(*) s FROM ilceler GROUP BY il_id').all().forEach(r => ilceSay[r.il_id] = r.s);
-    const sonuc = tumIller.map(il => ({
-        ...il,
-        ilce_sayisi: ilceSay[il.id] || 0,
-        erisim: (req.kullanici.rol === 'admin' || req.kullanici.rol === 'yardimci') ? true : izinliSet.has(il.id)
-    }));
+    const tamYetki = req.kullanici.rol === 'admin' || req.kullanici.rol === 'yardimci';
+    const sonuc = tumIller.map(il => {
+        const erisim = tamYetki ? true : izinliSet.has(il.id);
+        return {
+            ...il,
+            baskan_ad_soyad: erisim ? il.baskan_ad_soyad : null,
+            baskan_telefon: erisim ? il.baskan_telefon : null,
+            baskan_foto: erisim ? il.baskan_foto : null,
+            ilce_sayisi: ilceSay[il.id] || 0,
+            erisim
+        };
+    });
     res.json(sonuc);
 });
 
@@ -144,18 +151,20 @@ router.post('/toplu', tokenDogrula, (req, res) => {
         instagram_url = ?, twitter_url = ?, facebook_url = ?, tiktok_url = ?
         WHERE id = ?`);
     let guncellenen = 0;
-    for (const s of satirlar) {
-        if (!s.id) continue;
-        const ilId = parseInt(s.id);
-        if (izinli && !izinli.has(ilId)) continue;
-        const f = kayitFormatla(s);
-        const sonuc = guncelle.run(
-            f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
-            f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null,
-            ilId
-        );
-        if (sonuc.changes > 0) guncellenen++;
-    }
+    db.withTransaction(() => {
+        for (const s of satirlar) {
+            if (!s.id) continue;
+            const ilId = parseInt(s.id);
+            if (izinli && !izinli.has(ilId)) continue;
+            const f = kayitFormatla(s);
+            const sonuc = guncelle.run(
+                f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
+                f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null,
+                ilId
+            );
+            if (sonuc.changes > 0) guncellenen++;
+        }
+    });
     res.json({ mesaj: 'Toplu güncelleme tamamlandı.', guncellenen });
 });
 

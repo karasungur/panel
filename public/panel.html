@@ -585,9 +585,9 @@ tr:hover td{background:var(--surface-low)}
       <div class="bolum" style="max-width:560px">
         <div class="bolum-baslik"><h2>Şifre Değiştir</h2></div>
         <label style="font-size:13px;font-weight:600;color:var(--secondary)">Mevcut Şifre</label>
-        <input type="password" id="profil-eski-sifre" placeholder="Mevcut şifreniz" style="width:100%;background:var(--surface-low);border:1px solid var(--outline-variant);border-radius:9px;padding:11px;margin:6px 0 15px;font-family:inherit">
+        <input type="password" id="profil-eski-sifre" placeholder="Mevcut şifreniz" autocomplete="current-password" style="width:100%;background:var(--surface-low);border:1px solid var(--outline-variant);border-radius:9px;padding:11px;margin:6px 0 15px;font-family:inherit">
         <label style="font-size:13px;font-weight:600;color:var(--secondary)">Yeni Şifre</label>
-        <input type="password" id="profil-yeni-sifre" placeholder="Yeni şifreniz" style="width:100%;background:var(--surface-low);border:1px solid var(--outline-variant);border-radius:9px;padding:11px;margin:6px 0 15px;font-family:inherit">
+        <input type="password" id="profil-yeni-sifre" placeholder="Yeni şifreniz" autocomplete="new-password" style="width:100%;background:var(--surface-low);border:1px solid var(--outline-variant);border-radius:9px;padding:11px;margin:6px 0 15px;font-family:inherit">
         <button class="btn" onclick="profilSifreDegistir()">Şifreyi Değiştir</button>
       </div>
     </div>
@@ -639,7 +639,7 @@ tr:hover td{background:var(--surface-low)}
         <div class="bolum-baslik"><h2>Özel Anahtar (Safe Key)</h2></div>
         <p style="font-size:13px;color:var(--secondary);margin-bottom:14px">Tüm kullanıcıların giriş ekranında girdiği ortak anahtar.</p>
         <label style="font-size:13px;font-weight:600;color:var(--secondary)">Yeni Özel Anahtar</label>
-        <input type="text" id="yeni-safe-key" placeholder="Yeni özel anahtar" style="width:100%;background:var(--surface-low);border:1px solid var(--outline-variant);border-radius:9px;padding:11px;margin:6px 0 15px;font-family:inherit">
+        <input type="password" id="yeni-safe-key" placeholder="Yeni özel anahtar" autocomplete="new-password" style="width:100%;background:var(--surface-low);border:1px solid var(--outline-variant);border-radius:9px;padding:11px;margin:6px 0 15px;font-family:inherit">
         <button class="btn" onclick="safeKeyDegistir()">Özel Anahtarı Güncelle</button>
       </div>
     </div>
@@ -712,7 +712,7 @@ tr:hover td{background:var(--surface-low)}
   <div id="k-temel">
     <label>Ad Soyad</label><input type="text" id="yeni-ad-soyad" placeholder="Ad Soyad">
     <label>Kullanıcı Adı *</label><input type="text" id="yeni-kullanici-adi" placeholder="Kullanıcı adı" autocomplete="off">
-    <label id="sifre-label">Şifre *</label><input type="text" id="yeni-sifre" placeholder="Şifre (düzenlemede boş bırakırsanız değişmez)">
+    <label id="sifre-label">Şifre *</label><input type="password" id="yeni-sifre" placeholder="Şifre (düzenlemede boş bırakırsanız değişmez)" autocomplete="new-password">
     <label>Görev</label><input type="text" id="yeni-gorev" placeholder="Örn: İl Sorumlusu">
     <div id="rol-grubu" style="display:none">
       <label>Yetki Düzeyi</label>
@@ -730,7 +730,7 @@ tr:hover td{background:var(--surface-low)}
 <div class="modal-bg" id="ksifre-modal"><div class="modal">
   <h3>Şifre Değiştir</h3>
   <input type="hidden" id="ksifre-id">
-  <label>Yeni Şifre</label><input type="text" id="ksifre-yeni" placeholder="Yeni şifre">
+  <label>Yeni Şifre</label><input type="password" id="ksifre-yeni" placeholder="Yeni şifre" autocomplete="new-password">
   <div class="modal-btnlar"><button class="kaydet" onclick="kullaniciSifreKaydet()">Kaydet</button><button class="iptal" onclick="modalKapat('ksifre-modal')">İptal</button></div>
 </div></div>
 <div class="modal-bg" id="gorev-modal"><div class="modal">
@@ -810,12 +810,81 @@ tr:hover td{background:var(--surface-low)}
   <div class="modal-btnlar"><button class="kaydet" id="excel-uygula-btn" onclick="excelUygula()" style="display:none">İçe Aktar</button><button class="iptal" onclick="modalKapat('excel-modal')">Kapat</button></div>
 </div></div>
 <script>
+function metin(v){return v==null?'':String(v);}
+function escapeHTML(v){
+  return metin(v).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+const esc = escapeHTML;
+function guvenliJsonParse(v,varsayilan){
+  try{return v?JSON.parse(v):varsayilan;}catch(e){return varsayilan;}
+}
+function guvenliUrl(url){
+  const raw=metin(url).trim();
+  if(!raw)return '';
+  try{
+    const u=new URL(raw, window.location.origin);
+    if(u.protocol==='http:'||u.protocol==='https:')return u.href;
+  }catch(e){}
+  return '';
+}
+function resimUrl(url){
+  const u=guvenliUrl(url);
+  if(!u)return '';
+  try{
+    const parsed=new URL(u);
+    if(parsed.origin===window.location.origin && parsed.pathname.startsWith('/uploads/')){
+      const t=localStorage.getItem('token');
+      if(t)parsed.searchParams.set('token',t);
+    }
+    return parsed.href;
+  }catch(e){
+    return '';
+  }
+}
+function guvenliRenk(renk,varsayilan='#24467c'){
+  const r=metin(renk).trim();
+  return /^#[0-9a-f]{3,8}$/i.test(r)?r:varsayilan;
+}
+function guvenliId(v){
+  const n=Number.parseInt(v,10);
+  return Number.isSafeInteger(n)&&n>0?n:0;
+}
+function resimKaynakAta(el,url){
+  if(!el)return false;
+  const u=resimUrl(url);
+  if(u){el.src=u;el.style.display='block';return true;}
+  el.removeAttribute('src');el.style.display='none';return false;
+}
+function resimHTML(url,className='',style=''){
+  const u=resimUrl(url);
+  if(!u)return '';
+  return '<img src="'+esc(u)+'"'+(className?' class="'+esc(className)+'"':'')+(style?' style="'+esc(style)+'"':'')+'>';
+}
+function guvenliHash(link){
+  const bolum=metin(link).split('#')[1]||'';
+  return /^[A-Za-z0-9/_-]+$/.test(bolum)?bolum:'';
+}
+function guvenliExcelTip(tip){
+  return ['il','ilce','birlesik'].includes(tip)?tip:'il';
+}
+function inputDegeri(v){
+  return esc(metin(v));
+}
+function fotoInputHucre(foto){
+  const src=resimUrl(foto);
+  return '<td class="foto-hucre"><img src="'+esc(src)+'" alt="" style="display:'+(src?'block':'none')+'" data-foto>'+
+    '<input type="hidden" name="baskan_foto" value="'+inputDegeri(foto)+'">'+
+    '<label class="foto-btn">📷<input type="file" accept="image/*" style="display:none" onchange="topluFotoSec(this)"></label></td>';
+}
 const token = localStorage.getItem('token');
-let kullanici = JSON.parse(localStorage.getItem('kullanici') || '{}');
+let kullanici = guvenliJsonParse(localStorage.getItem('kullanici'), {});
 let seciliIlId = null, seciliIlAdi = '';
 const RENKLER = ['#c1121f','#24467c','#00ab76','#856404','#7B1FA2','#D81B60','#00838f','#5d4037','#455a64','#e65100'];
 let secilenRenk = RENKLER[1];
-if (!token) window.location.href = '/';
+if (!token || !kullanici || typeof kullanici !== 'object') {
+  localStorage.clear();
+  window.location.href = '/';
+}
 
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.display='block';setTimeout(()=>t.style.display='none',2600);}
 function val(id){return document.getElementById(id).value;}
@@ -827,7 +896,9 @@ function profilBilgileriGoster(){
     kullanici.rol==='admin' ? 'Tanıtım ve Medya Başkanı'
     : (kullanici.gorev_adi || (kullanici.rol==='yardimci' ? 'Yardımcı' : 'Kullanıcı'));
   const av = document.getElementById('tb-avatar');
-  if (kullanici.profil_foto){ av.innerHTML = '<img src="'+kullanici.profil_foto+'" style="width:100%;height:100%;border-radius:99px;object-fit:cover">'; }
+  av.innerHTML = '';
+  const foto = resimHTML(kullanici.profil_foto,'','width:100%;height:100%;border-radius:99px;object-fit:cover');
+  if (foto){ av.innerHTML = foto; }
   else av.textContent = basHarfleri(kullanici.ad_soyad || kullanici.kullanici_adi);
 }
 profilBilgileriGoster();
@@ -861,9 +932,23 @@ function sayfaGoster(ad){
 async function apicagir(url,method='GET',body=null){
   const ayar={method,headers:{'Authorization':'Bearer '+token}};
   if(body){ayar.headers['Content-Type']='application/json';ayar.body=JSON.stringify(body);}
-  const c=await fetch(url,ayar);
-  if(c.status===401){localStorage.clear();window.location.href='/';return {};}
-  return c.json();
+  let c;
+  try{
+    c=await fetch(url,ayar);
+  }catch(e){
+    return {hata:'Sunucuya bağlanılamadı.'};
+  }
+  if(c.status===401){localStorage.clear();window.location.href='/';return {hata:'Oturum süresi doldu.'};}
+  let veri=null;
+  try{
+    const tip=c.headers.get('content-type')||'';
+    veri=tip.includes('application/json')?await c.json():null;
+  }catch(e){veri=null;}
+  if(!c.ok){
+    const hata=veri&&(veri.hata||veri.error||veri.mesaj);
+    return {hata:hata||('İstek başarısız. ('+c.status+')')};
+  }
+  return veri==null?{}:veri;
 }
 
 let haritaYuklendi=false, haritaVeri=[];
@@ -923,14 +1008,14 @@ function haritaBoyaVeOlayla(){
       if(!il)return;
       // Grup hover: tum parcalari ayni anda parlat
       gListesi.forEach(x => x.classList.add('grup-hover'));
-      let foto=il.baskan_foto?'<img src="'+il.baskan_foto+'">':'<div class="bos-foto"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>';
-      let ic='<div class="il-ad">'+il.il_adi+'</div>';
+      let foto=resimHTML(il.baskan_foto)||'<div class="bos-foto"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>';
+      let ic='<div class="il-ad">'+esc(il.il_adi)+'</div>';
       if(il.baskan_ad_soyad){
-        ic+='<div class="baskan">'+foto+'<div><div class="baskan-ad">'+il.baskan_ad_soyad+'</div>'+(il.baskan_telefon?'<div class="baskan-tel">'+il.baskan_telefon+'</div>':'')+'</div></div>';
+        ic+='<div class="baskan">'+foto+'<div><div class="baskan-ad">'+esc(il.baskan_ad_soyad)+'</div>'+(il.baskan_telefon?'<div class="baskan-tel">'+esc(il.baskan_telefon)+'</div>':'')+'</div></div>';
       }else{
         ic+='<div class="baskan">'+foto+'<div class="baskan-ad" style="color:var(--secondary)">Başkan atanmamış</div></div>';
       }
-      ic+='<div class="ilce-rozet"><b>'+(il.ilce_sayisi||0)+'</b> ilçe</div>';
+      ic+='<div class="ilce-rozet"><b>'+esc(il.ilce_sayisi||0)+'</b> ilçe</div>';
       bilgi.innerHTML=ic; bilgi.style.display='block';
       let x=e.clientX+16, y=e.clientY+16;
       if(x+240>window.innerWidth)x=e.clientX-246;
@@ -973,19 +1058,20 @@ function haritaBoyaVeOlayla(){
 }
 function baskanHucre(o){
   if(!o.baskan_ad_soyad&&!o.baskan_foto)return '<span style="color:var(--outline)">—</span>';
-  let foto=o.baskan_foto?'<img src="'+o.baskan_foto+'" class="baskan-foto">':'<div class="baskan-bos"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>';
-  let b='<div class="baskan-bilgi"><b>'+(o.baskan_ad_soyad||'-')+'</b>';
-  if(o.baskan_telefon)b+='<br>'+o.baskan_telefon;
-  if(o.baskan_tc)b+='<br>TC: '+o.baskan_tc;
+  let foto=resimHTML(o.baskan_foto,'baskan-foto')||'<div class="baskan-bos"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg></div>';
+  let b='<div class="baskan-bilgi"><b>'+esc(o.baskan_ad_soyad||'-')+'</b>';
+  if(o.baskan_telefon)b+='<br>'+esc(o.baskan_telefon);
+  if(o.baskan_tc)b+='<br>TC: '+esc(o.baskan_tc);
   b+='</div>';
   return '<div class="baskan-hucre">'+foto+b+'</div>';
 }
 function sosyalHucre(o){
   let h='';
-  if(o.instagram_url)h+='<a href="'+o.instagram_url+'" target="_blank" class="sosyal-link">IG</a>';
-  if(o.twitter_url)h+='<a href="'+o.twitter_url+'" target="_blank" class="sosyal-link">X</a>';
-  if(o.facebook_url)h+='<a href="'+o.facebook_url+'" target="_blank" class="sosyal-link">FB</a>';
-  if(o.tiktok_url)h+='<a href="'+o.tiktok_url+'" target="_blank" class="sosyal-link">TT</a>';
+  const linkler=[['instagram_url','IG'],['twitter_url','X'],['facebook_url','FB'],['tiktok_url','TT']];
+  linkler.forEach(([alan,etiket])=>{
+    const url=guvenliUrl(o[alan]);
+    if(url)h+='<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer" class="sosyal-link">'+etiket+'</a>';
+  });
   return h||'<span style="color:var(--outline)">—</span>';
 }
 async function illeriYukle(){
@@ -994,33 +1080,39 @@ async function illeriYukle(){
   if(!Array.isArray(iller)||!iller.length){tb.innerHTML='<tr><td colspan="5" class="bos-mesaj">Size atanmış il bulunmuyor.</td></tr>';return;}
   iller.forEach(il=>{
     const tr=document.createElement('tr');
-    tr.innerHTML='<td>'+(il.plaka||'-')+'</td>'+
-      '<td><span class="il-link" onclick="ilSecVeIlceleriGoster('+il.id+',\''+il.il_adi.replace(/'/g,"\\'")+'\')">'+il.il_adi+'</span></td>'+
+    const ilId=guvenliId(il.id);
+    const ilAdi=metin(il.il_adi);
+    tr.innerHTML='<td>'+esc(il.plaka||'-')+'</td>'+
+      '<td><span class="il-link">'+esc(ilAdi)+'</span></td>'+
       '<td>'+baskanHucre(il)+'</td><td>'+sosyalHucre(il)+'</td>'+
-      '<td><button class="islem-btn" onclick="ilDuzenle('+il.id+')">Düzenle</button></td>';
+      '<td><button class="islem-btn" onclick="ilDuzenle('+ilId+')">Düzenle</button></td>';
+    tr.querySelector('.il-link').onclick=()=>ilSecVeIlceleriGoster(ilId,ilAdi);
     tb.appendChild(tr);
   });
 }
 async function ilSecVeIlceleriGoster(il_id,il_adi){
-  seciliIlId=il_id; seciliIlAdi=il_adi;
-  document.getElementById('ilce-baslik').textContent=il_adi+' — İlçeler';
+  const ilId=guvenliId(il_id); if(!ilId)return;
+  seciliIlId=ilId; seciliIlAdi=metin(il_adi);
+  document.getElementById('ilce-baslik').textContent=seciliIlAdi+' — İlçeler';
   document.getElementById('ilce-bolumu').style.display='block';
-  document.getElementById('ilce-il-id').value=il_id;
+  document.getElementById('ilce-il-id').value=ilId;
   document.getElementById('ilce-bolumu').scrollIntoView({behavior:'smooth'});
-  const ilceler=await apicagir('/api/ilceler?il_id='+il_id);
+  const ilceler=await apicagir('/api/ilceler?il_id='+encodeURIComponent(ilId));
   const tb=document.getElementById('ilce-tablosu'); tb.innerHTML='';
   if(!Array.isArray(ilceler)||!ilceler.length){tb.innerHTML='<tr><td colspan="4" class="bos-mesaj">Henüz ilçe eklenmemiş.</td></tr>';return;}
   ilceler.forEach(ic=>{
     const tr=document.createElement('tr');
-    tr.innerHTML='<td><b>'+ic.ilce_adi+'</b></td><td>'+baskanHucre(ic)+'</td><td>'+sosyalHucre(ic)+'</td>'+
-      '<td><button class="islem-btn" onclick="ilceDuzenle('+ic.id+')">Düzenle</button><button class="islem-btn sil-btn" onclick="ilceSil('+ic.id+')">Sil</button></td>';
+    const icId=guvenliId(ic.id);
+    tr.innerHTML='<td><b>'+esc(ic.ilce_adi)+'</b></td><td>'+baskanHucre(ic)+'</td><td>'+sosyalHucre(ic)+'</td>'+
+      '<td><button class="islem-btn" onclick="ilceDuzenle('+icId+')">Düzenle</button><button class="islem-btn sil-btn" onclick="ilceSil('+icId+')">Sil</button></td>';
     tb.appendChild(tr);
   });
 }
 async function ilDuzenle(id){
-  const il=await apicagir('/api/iller/'+id);
-  document.getElementById('il-id').value=il.id;
-  document.getElementById('il-modal-baslik').textContent=il.il_adi+' — Düzenle';
+  const ilId=guvenliId(id); if(!ilId)return;
+  const il=await apicagir('/api/iller/'+ilId);
+  document.getElementById('il-id').value=guvenliId(il.id);
+  document.getElementById('il-modal-baslik').textContent=metin(il.il_adi)+' — Düzenle';
   document.getElementById('il-baskan-ad').value=il.baskan_ad_soyad||'';
   document.getElementById('il-baskan-telefon').value=il.baskan_telefon||'';
   document.getElementById('il-baskan-tc').value=il.baskan_tc||'';
@@ -1030,11 +1122,11 @@ async function ilDuzenle(id){
   document.getElementById('il-facebook').value=il.facebook_url||'';
   document.getElementById('il-tiktok').value=il.tiktok_url||'';
   const o=document.getElementById('il-foto-oniz');
-  if(il.baskan_foto){o.src=il.baskan_foto;o.style.display='block';}else o.style.display='none';
+  resimKaynakAta(o,il.baskan_foto);
   document.getElementById('il-modal').classList.add('aktif');
 }
 async function ilKaydet(){
-  const id=document.getElementById('il-id').value;
+  const id=guvenliId(document.getElementById('il-id').value); if(!id)return;
   const body={baskan_ad_soyad:val('il-baskan-ad'),baskan_telefon:val('il-baskan-telefon'),baskan_tc:val('il-baskan-tc'),baskan_foto:val('il-baskan-foto'),instagram_url:val('il-instagram'),twitter_url:val('il-twitter'),facebook_url:val('il-facebook'),tiktok_url:val('il-tiktok')};
   const s=await apicagir('/api/iller/'+id,'PUT',body);
   if(s.hata){toast(s.hata);return;}
@@ -1048,10 +1140,11 @@ function ilceEkleModalAc(){
   document.getElementById('ilce-modal').classList.add('aktif');
 }
 async function ilceDuzenle(id){
-  const ilceler=await apicagir('/api/ilceler?il_id='+seciliIlId);
-  const ic=ilceler.find(x=>x.id===id); if(!ic)return;
-  document.getElementById('ilce-modal-baslik').textContent=ic.ilce_adi+' — Düzenle';
-  document.getElementById('ilce-id').value=ic.id;
+  const icId=guvenliId(id); if(!icId)return;
+  const ilceler=await apicagir('/api/ilceler?il_id='+encodeURIComponent(guvenliId(seciliIlId)));
+  const ic=Array.isArray(ilceler)?ilceler.find(x=>guvenliId(x.id)===icId):null; if(!ic)return;
+  document.getElementById('ilce-modal-baslik').textContent=metin(ic.ilce_adi)+' — Düzenle';
+  document.getElementById('ilce-id').value=icId;
   document.getElementById('ilce-adi').value=ic.ilce_adi;
   document.getElementById('ilce-baskan-ad').value=ic.baskan_ad_soyad||'';
   document.getElementById('ilce-baskan-telefon').value=ic.baskan_telefon||'';
@@ -1062,21 +1155,22 @@ async function ilceDuzenle(id){
   document.getElementById('ilce-facebook').value=ic.facebook_url||'';
   document.getElementById('ilce-tiktok').value=ic.tiktok_url||'';
   const o=document.getElementById('ilce-foto-oniz');
-  if(ic.baskan_foto){o.src=ic.baskan_foto;o.style.display='block';}else o.style.display='none';
+  resimKaynakAta(o,ic.baskan_foto);
   document.getElementById('ilce-modal').classList.add('aktif');
 }
 async function ilceKaydet(){
-  const id=document.getElementById('ilce-id').value;
-  const il_id=document.getElementById('ilce-il-id').value;
-  const body={il_id:parseInt(il_id),ilce_adi:val('ilce-adi'),baskan_ad_soyad:val('ilce-baskan-ad'),baskan_telefon:val('ilce-baskan-telefon'),baskan_tc:val('ilce-baskan-tc'),baskan_foto:val('ilce-baskan-foto'),instagram_url:val('ilce-instagram'),twitter_url:val('ilce-twitter'),facebook_url:val('ilce-facebook'),tiktok_url:val('ilce-tiktok')};
+  const id=guvenliId(document.getElementById('ilce-id').value);
+  const il_id=guvenliId(document.getElementById('ilce-il-id').value);
+  const body={il_id,ilce_adi:val('ilce-adi'),baskan_ad_soyad:val('ilce-baskan-ad'),baskan_telefon:val('ilce-baskan-telefon'),baskan_tc:val('ilce-baskan-tc'),baskan_foto:val('ilce-baskan-foto'),instagram_url:val('ilce-instagram'),twitter_url:val('ilce-twitter'),facebook_url:val('ilce-facebook'),tiktok_url:val('ilce-tiktok')};
+  if(!il_id){toast('İl seçimi geçersiz.');return;}
   if(!body.ilce_adi){toast('İlçe adı gereklidir.');return;}
   let s; if(id)s=await apicagir('/api/ilceler/'+id,'PUT',body); else s=await apicagir('/api/ilceler','POST',body);
   if(s.hata){toast(s.hata);return;}
-  modalKapat('ilce-modal'); ilSecVeIlceleriGoster(parseInt(il_id),seciliIlAdi); toast('Kaydedildi.');
+  modalKapat('ilce-modal'); ilSecVeIlceleriGoster(il_id,seciliIlAdi); toast('Kaydedildi.');
 }
 async function ilceSil(id){
-  if(!confirm('Bu ilçeyi silmek istediğinize emin misiniz?'))return;
-  const s=await apicagir('/api/ilceler/'+id,'DELETE');
+  const icId=guvenliId(id); if(!icId||!confirm('Bu ilçeyi silmek istediğinize emin misiniz?'))return;
+  const s=await apicagir('/api/ilceler/'+icId,'DELETE');
   if(s.hata){toast(s.hata);return;}
   ilSecVeIlceleriGoster(seciliIlId,seciliIlAdi);
 }
@@ -1087,7 +1181,7 @@ async function baskanFotoSec(tip){
     const s=await apicagir('/api/yukle','POST',{dosya:r.result});
     if(s.hata){toast(s.hata);return;}
     document.getElementById(tip+'-baskan-foto').value=s.url;
-    const o=document.getElementById(tip+'-foto-oniz'); o.src=s.url; o.style.display='block';
+    const o=document.getElementById(tip+'-foto-oniz'); resimKaynakAta(o,s.url);
   };
   r.readAsDataURL(f);
 }
@@ -1099,39 +1193,41 @@ async function kullanicilariYukle(){
     let iller;
     if(k.rol==='admin') iller='<span style="color:var(--secondary)">Tüm iller (Yönetici)</span>';
     else if(k.rol==='yardimci') iller='<span style="color:var(--secondary)">Tüm iller (Yardımcı)</span>';
-    else iller=(k.iller&&k.iller.length?'<div class="il-etiketleri">'+k.iller.map(i=>'<span class="il-etiket">'+i.il_adi+'</span>').join('')+'</div>':'<span style="color:var(--outline)">İl atanmamış</span>');
+    else iller=(Array.isArray(k.iller)&&k.iller.length?'<div class="il-etiketleri">'+k.iller.map(i=>'<span class="il-etiket">'+esc(i.il_adi)+'</span>').join('')+'</div>':'<span style="color:var(--outline)">İl atanmamış</span>');
 
     let gorevRozet;
+    const renk=guvenliRenk(k.renk);
     if(k.rol==='admin') gorevRozet='<span class="rozet" style="background:#c1121f">Tanıtım ve Medya Başkanı</span>';
-    else if(k.rol==='yardimci') gorevRozet='<span class="rozet" style="background:#856404">Yardımcı</span>'+(k.gorev_adi?' <span class="gorev-rozet" style="background:'+(k.renk||'#24467c')+'22;color:'+(k.renk||'#24467c')+'">'+k.gorev_adi+'</span>':'');
-    else gorevRozet='<span class="gorev-rozet" style="background:'+(k.renk||'#24467c')+'22;color:'+(k.renk||'#24467c')+'">'+(k.gorev_adi||'Kullanıcı')+'</span>';
+    else if(k.rol==='yardimci') gorevRozet='<span class="rozet" style="background:#856404">Yardımcı</span>'+(k.gorev_adi?' <span class="gorev-rozet" style="background:'+renk+'22;color:'+renk+'">'+esc(k.gorev_adi)+'</span>':'');
+    else gorevRozet='<span class="gorev-rozet" style="background:'+renk+'22;color:'+renk+'">'+esc(k.gorev_adi||'Kullanıcı')+'</span>';
 
-    let avatar = k.profil_foto?'<img src="'+k.profil_foto+'" class="baskan-foto" style="border-radius:99px">':'<div class="avatar" style="width:38px;height:38px;background:'+(k.renk||'#24467c')+'22;color:'+(k.renk||'#24467c')+'">'+basHarfleri(k.ad_soyad||k.kullanici_adi)+'</div>';
+    let avatar = resimHTML(k.profil_foto,'baskan-foto','border-radius:99px')||'<div class="avatar" style="width:38px;height:38px;background:'+renk+'22;color:'+renk+'">'+esc(basHarfleri(k.ad_soyad||k.kullanici_adi))+'</div>';
 
     // Yardimci ya da kullanici, hedef admin DEGILSE etkilesim acik;
     // Yardimci admin'i etkileyemez (UI seviyesinde de gizleyelim, backend zaten engelliyor)
     const adminHedef = k.rol === 'admin';
     const yapanAdmin = kullanici.rol === 'admin';
+    const kId=guvenliId(k.id);
     let islem='';
     if(!adminHedef || yapanAdmin){
       if(k.rol==='kullanici'){
-        islem+='<button class="islem-btn" onclick="kullaniciDuzenle('+k.id+')">Düzenle</button>';
-        islem+='<button class="islem-btn" onclick="kullaniciIllerDuzenle('+k.id+')">İl Ata</button>';
+        islem+='<button class="islem-btn" onclick="kullaniciDuzenle('+kId+')">Düzenle</button>';
+        islem+='<button class="islem-btn" onclick="kullaniciIllerDuzenle('+kId+')">İl Ata</button>';
       } else if(k.rol==='yardimci'){
-        islem+='<button class="islem-btn" onclick="kullaniciDuzenle('+k.id+')">Düzenle</button>';
+        islem+='<button class="islem-btn" onclick="kullaniciDuzenle('+kId+')">Düzenle</button>';
       } else if(yapanAdmin) {
         // admin de admin'i sadece sifre/silebilir? Kendisi degilse sifre degisebilir
       }
-      islem+='<button class="islem-btn" onclick="kullaniciSifreModalAc('+k.id+')">Şifre</button>';
-      if(k.id!==kullanici.id) islem+='<button class="islem-btn sil-btn" onclick="kullaniciSil('+k.id+')">Sil</button>';
+      islem+='<button class="islem-btn" onclick="kullaniciSifreModalAc('+kId+')">Şifre</button>';
+      if(kId!==guvenliId(kullanici.id)) islem+='<button class="islem-btn sil-btn" onclick="kullaniciSil('+kId+')">Sil</button>';
     } else {
       islem='<span style="color:var(--outline);font-size:12px">🔒 Yönetici hesabı</span>';
     }
     const sonGirisMetin = sonGorulduMetin(k.son_giris);
     const sonGirisSinif = sonGorulduSinif(k.son_giris);
-    const sonGiris = '<span class="online-rozet '+sonGirisSinif+'"><span class="nokta"></span>'+sonGirisMetin+'</span>';
+    const sonGiris = '<span class="online-rozet '+esc(sonGirisSinif)+'"><span class="nokta"></span>'+esc(sonGirisMetin)+'</span>';
     const tr=document.createElement('tr');
-    tr.innerHTML='<td><div class="baskan-hucre">'+avatar+'<div class="baskan-bilgi"><b>'+(k.ad_soyad||k.kullanici_adi)+'</b><br>@'+k.kullanici_adi+'</div></div></td>'+
+    tr.innerHTML='<td><div class="baskan-hucre">'+avatar+'<div class="baskan-bilgi"><b>'+esc(k.ad_soyad||k.kullanici_adi)+'</b><br>@'+esc(k.kullanici_adi)+'</div></div></td>'+
       '<td>'+gorevRozet+'</td><td>'+iller+'</td><td>'+sonGiris+'</td><td>'+islem+'</td>';
     tb.appendChild(tr);
   });
@@ -1148,13 +1244,16 @@ function renkSecimDoldur(secili){
 async function ilSecimDoldur(seciliIdler=[]){
   const iller=await apicagir('/api/iller/harita');
   const k=document.getElementById('il-secim-kutu'); k.innerHTML='';
+  if(!Array.isArray(iller))return;
+  const seciliSet=new Set(seciliIdler.map(guvenliId));
   iller.forEach(il=>{
+    const ilId=guvenliId(il.id);
     const d=document.createElement('div'); d.className='il-secim-satir';
-    d.innerHTML='<input type="checkbox" id="ils-'+il.id+'" value="'+il.id+'" '+(seciliIdler.includes(il.id)?'checked':'')+'><label for="ils-'+il.id+'">'+il.plaka+' - '+il.il_adi+'</label>';
+    d.innerHTML='<input type="checkbox" id="ils-'+ilId+'" value="'+ilId+'" '+(seciliSet.has(ilId)?'checked':'')+'><label for="ils-'+ilId+'">'+esc(il.plaka)+' - '+esc(il.il_adi)+'</label>';
     k.appendChild(d);
   });
 }
-function seciliIller(){return Array.from(document.querySelectorAll('#il-secim-kutu input:checked')).map(c=>parseInt(c.value));}
+function seciliIller(){return Array.from(document.querySelectorAll('#il-secim-kutu input:checked')).map(c=>guvenliId(c.value)).filter(Boolean);}
 async function kullaniciEkleModalAc(){
   document.getElementById('kullanici-modal-baslik').textContent='Kullanıcı Ekle';
   document.getElementById('kullanici-id').value='';
@@ -1173,9 +1272,10 @@ async function kullaniciEkleModalAc(){
   document.getElementById('kullanici-modal').classList.add('aktif');
 }
 async function kullaniciDuzenle(id){
-  const ks=await apicagir('/api/kullanicilar'); const k=ks.find(x=>x.id===id); if(!k)return;
+  const kId=guvenliId(id);
+  const ks=await apicagir('/api/kullanicilar'); const k=Array.isArray(ks)?ks.find(x=>guvenliId(x.id)===kId):null; if(!k)return;
   document.getElementById('kullanici-modal-baslik').textContent='Kullanıcı Düzenle';
-  document.getElementById('kullanici-id').value=id;
+  document.getElementById('kullanici-id').value=kId;
   document.getElementById('k-temel').style.display='block';
   document.getElementById('sifre-label').textContent='Yeni Şifre (boş = değişmez)';
   document.getElementById('yeni-ad-soyad').value=k.ad_soyad||'';
@@ -1194,15 +1294,16 @@ async function kullaniciDuzenle(id){
   document.getElementById('kullanici-modal').classList.add('aktif');
 }
 async function kullaniciIllerDuzenle(id){
-  const ks=await apicagir('/api/kullanicilar'); const k=ks.find(x=>x.id===id); if(!k)return;
+  const kId=guvenliId(id);
+  const ks=await apicagir('/api/kullanicilar'); const k=Array.isArray(ks)?ks.find(x=>guvenliId(x.id)===kId):null; if(!k)return;
   document.getElementById('kullanici-modal-baslik').textContent=(k.ad_soyad||k.kullanici_adi)+' — İl Ata';
-  document.getElementById('kullanici-id').value=id;
+  document.getElementById('kullanici-id').value=kId;
   document.getElementById('k-temel').style.display='none';
   await ilSecimDoldur((k.iller||[]).map(i=>i.id));
   document.getElementById('kullanici-modal').classList.add('aktif');
 }
 async function kullaniciKaydet(){
-  const id=document.getElementById('kullanici-id').value;
+  const id=guvenliId(document.getElementById('kullanici-id').value);
   const il_idleri=seciliIller();
   const temelGorunur=document.getElementById('k-temel').style.display!=='none';
   const rolGorunur=document.getElementById('rol-grubu').style.display!=='none';
@@ -1214,9 +1315,13 @@ async function kullaniciKaydet(){
       const s=await apicagir('/api/kullanicilar/'+id,'PUT',body);
       if(s.hata){toast(s.hata);return;}
       const sifre=val('yeni-sifre');
-      if(sifre){await apicagir('/api/kullanicilar/'+id+'/sifre','PUT',{yeni_sifre:sifre});}
+      if(sifre){
+        const sifreSonuc=await apicagir('/api/kullanicilar/'+id+'/sifre','PUT',{yeni_sifre:sifre});
+        if(sifreSonuc.hata){toast(sifreSonuc.hata);return;}
+      }
     }
-    await apicagir('/api/kullanicilar/'+id+'/iller','PUT',{il_idleri});
+    const ilSonuc=await apicagir('/api/kullanicilar/'+id+'/iller','PUT',{il_idleri});
+    if(ilSonuc.hata){toast(ilSonuc.hata);return;}
   }else{
     const body={ad_soyad:val('yeni-ad-soyad'),kullanici_adi:val('yeni-kullanici-adi'),sifre:val('yeni-sifre'),gorev_adi:val('yeni-gorev'),renk:secilenRenk,il_idleri};
     if(seciliRol) body.rol = seciliRol;
@@ -1226,17 +1331,20 @@ async function kullaniciKaydet(){
   }
   modalKapat('kullanici-modal'); kullanicilariYukle(); toast('Kaydedildi.');
 }
-function kullaniciSifreModalAc(id){document.getElementById('ksifre-id').value=id;document.getElementById('ksifre-yeni').value='';document.getElementById('ksifre-modal').classList.add('aktif');}
+function kullaniciSifreModalAc(id){
+  const kId=guvenliId(id); if(!kId)return;
+  document.getElementById('ksifre-id').value=kId;document.getElementById('ksifre-yeni').value='';document.getElementById('ksifre-modal').classList.add('aktif');
+}
 async function kullaniciSifreKaydet(){
-  const id=document.getElementById('ksifre-id').value, ys=val('ksifre-yeni');
-  if(!ys){toast('Yeni şifre girin.');return;}
+  const id=guvenliId(document.getElementById('ksifre-id').value), ys=val('ksifre-yeni');
+  if(!id||!ys){toast('Yeni şifre girin.');return;}
   const s=await apicagir('/api/kullanicilar/'+id+'/sifre','PUT',{yeni_sifre:ys});
   if(s.hata){toast(s.hata);return;}
   modalKapat('ksifre-modal'); toast('Şifre güncellendi.');
 }
 async function kullaniciSil(id){
-  if(!confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?'))return;
-  const s=await apicagir('/api/kullanicilar/'+id,'DELETE');
+  const kId=guvenliId(id); if(!kId||!confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?'))return;
+  const s=await apicagir('/api/kullanicilar/'+kId,'DELETE');
   if(s.hata){toast(s.hata);return;}
   kullanicilariYukle();
 }
@@ -1245,12 +1353,12 @@ function profilSayfasiDoldur(){
   document.getElementById('profil-kullanici-adi').value=kullanici.kullanici_adi||'';
   document.getElementById('profil-foto').value=kullanici.profil_foto||'';
   const o=document.getElementById('profil-foto-oniz');
-  if(kullanici.profil_foto){o.src=kullanici.profil_foto;o.style.display='block';}else o.style.display='none';
+  resimKaynakAta(o,kullanici.profil_foto);
 }
 async function profilFotoSec(){
   const f=event.target.files[0]; if(!f)return;
   const r=new FileReader();
-  r.onload=async()=>{const s=await apicagir('/api/yukle','POST',{dosya:r.result});if(s.hata){toast(s.hata);return;}document.getElementById('profil-foto').value=s.url;const o=document.getElementById('profil-foto-oniz');o.src=s.url;o.style.display='block';};
+  r.onload=async()=>{const s=await apicagir('/api/yukle','POST',{dosya:r.result});if(s.hata){toast(s.hata);return;}document.getElementById('profil-foto').value=s.url;const o=document.getElementById('profil-foto-oniz');resimKaynakAta(o,s.url);};
   r.readAsDataURL(f);
 }
 async function profilKaydet(){
@@ -1289,41 +1397,43 @@ async function gorevleriYukle(){
   gs.forEach(g=>{
     const tamam=g.durum==='tamamlandi';
     const d=document.createElement('div'); d.className='gorev-kart'+(tamam?' tamam':'');
+    const gorevId=guvenliId(g.id);
 
     // Kime atandı (yetkili görüyor)
-    let kime = yetkili && g.kullanici_adi ? '<div class="kime">→ '+(g.ad_soyad||g.kullanici_adi)+'</div>' : '';
+    let kime = yetkili && g.kullanici_adi ? '<div class="kime">→ '+esc(g.ad_soyad||g.kullanici_adi)+'</div>' : '';
     // Kim atadı (kullanıcı görüyor)
-    let kimden = !yetkili && g.olusturan_adi ? '<div class="gorev-olusturan">↗ '+(g.olusturan_ad_soyad||g.olusturan_adi)+' tarafından atandı</div>' : '';
+    let kimden = !yetkili && g.olusturan_adi ? '<div class="gorev-olusturan">↗ '+esc(g.olusturan_ad_soyad||g.olusturan_adi)+' tarafından atandı</div>' : '';
 
     // Meta bilgiler
+    const oncelik = ['acil','normal','dusuk'].includes(g.oncelik) ? g.oncelik : 'normal';
     let meta = '<div class="gorev-meta">';
-    meta += '<span class="gorev-rozet-oncelik '+g.oncelik+'">'+(oncelikEtiket[g.oncelik]||'Normal')+'</span>';
+    meta += '<span class="gorev-rozet-oncelik '+oncelik+'">'+esc(oncelikEtiket[oncelik]||'Normal')+'</span>';
     if(g.kategori) meta += '<span class="gorev-rozet-kategori">'+(kategoriEtiket[g.kategori]||kategoriEtiket.diger)+'</span>';
     if(g.tekrar && g.tekrar !== 'tek') meta += '<span class="gorev-rozet-tekrar">'+(tekrarEtiket[g.tekrar]||'')+'</span>';
     if(g.son_tarih){
-      const st = new Date(g.son_tarih.replace(' ', 'T'));
+      const st = new Date(metin(g.son_tarih).replace(' ', 'T'));
       const simdi = new Date();
       const fark = (st - simdi) / (1000*60*60*24); // gün cinsinden
       let sinif = '';
       if(!tamam && fark < 0) sinif = 'gecmis';
       else if(!tamam && fark < 1) sinif = 'yakin';
-      const tarihStr = st.toLocaleDateString('tr-TR', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
-      meta += '<span class="gorev-son-tarih '+sinif+'"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>'+tarihStr+'</span>';
+      const tarihStr = isNaN(st) ? '' : st.toLocaleDateString('tr-TR', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+      meta += '<span class="gorev-son-tarih '+sinif+'"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>'+esc(tarihStr)+'</span>';
     }
     meta += '</div>';
 
-    d.innerHTML='<div class="bilgi"><h4>'+g.baslik+'</h4>'+(g.aciklama?'<p>'+g.aciklama+'</p>':'')+kime+kimden+meta+'</div>'+
+    d.innerHTML='<div class="bilgi"><h4>'+esc(g.baslik)+'</h4>'+(g.aciklama?'<p>'+esc(g.aciklama)+'</p>':'')+kime+kimden+meta+'</div>'+
       '<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">'+
       '<span class="durum-rozet '+(tamam?'durum-tamam':'durum-bekliyor')+'">'+(tamam?'Tamamlandı':'Bekliyor')+'</span>'+
-      '<div><button class="islem-btn" onclick="gorevDurum('+g.id+',\''+(tamam?'bekliyor':'tamamlandi')+'\')">'+(tamam?'Geri Al':'Tamamla')+'</button>'+
-      (yetkili?'<button class="islem-btn sil-btn" onclick="gorevSil('+g.id+')">Sil</button>':'')+'</div></div>';
+      '<div><button class="islem-btn" onclick="gorevDurum('+gorevId+',\''+(tamam?'bekliyor':'tamamlandi')+'\')">'+(tamam?'Geri Al':'Tamamla')+'</button>'+
+      (yetkili?'<button class="islem-btn sil-btn" onclick="gorevSil('+gorevId+')">Sil</button>':'')+'</div></div>';
     l.appendChild(d);
   });
 }
 async function gorevEkleModalAc(){
   const ks=await apicagir('/api/kullanicilar');
   const sel=document.getElementById('gorev-kullanici'); sel.innerHTML='';
-  ks.filter(k=>k.rol!=='admin').forEach(k=>{const o=document.createElement('option');o.value=k.id;o.textContent=(k.ad_soyad||k.kullanici_adi);sel.appendChild(o);});
+  (Array.isArray(ks)?ks:[]).filter(k=>k.rol!=='admin').forEach(k=>{const o=document.createElement('option');o.value=guvenliId(k.id);o.textContent=(k.ad_soyad||k.kullanici_adi);sel.appendChild(o);});
   document.getElementById('gorev-baslik').value='';
   document.getElementById('gorev-aciklama-input').value='';
   document.getElementById('gorev-oncelik').value='normal';
@@ -1335,7 +1445,7 @@ async function gorevEkleModalAc(){
 async function gorevKaydet(){
   const sonTarih = val('gorev-son-tarih');
   const body={
-    kullanici_id:parseInt(val('gorev-kullanici')),
+    kullanici_id:guvenliId(val('gorev-kullanici')),
     baslik:val('gorev-baslik'),
     aciklama:val('gorev-aciklama-input'),
     oncelik:val('gorev-oncelik'),
@@ -1349,20 +1459,33 @@ async function gorevKaydet(){
   if(s.hata){toast(s.hata);return;}
   modalKapat('gorev-modal'); gorevleriYukle(); toast('Görev atandı.');
 }
-async function gorevDurum(id,durum){await apicagir('/api/gorevler/'+id+'/durum','PUT',{durum});gorevleriYukle();bildirimleriYenile();}
-async function gorevSil(id){if(!confirm('Görevi sil?'))return;await apicagir('/api/gorevler/'+id,'DELETE');gorevleriYukle();}
+async function gorevDurum(id,durum){
+  const gorevId=guvenliId(id);
+  const durumSafe=['bekliyor','tamamlandi'].includes(durum)?durum:'';
+  if(!gorevId||!durumSafe)return;
+  const s=await apicagir('/api/gorevler/'+gorevId+'/durum','PUT',{durum:durumSafe});
+  if(s.hata){toast(s.hata);return;}
+  gorevleriYukle();bildirimleriYenile();
+}
+async function gorevSil(id){
+  const gorevId=guvenliId(id);if(!gorevId||!confirm('Görevi sil?'))return;
+  const s=await apicagir('/api/gorevler/'+gorevId,'DELETE');
+  if(s.hata){toast(s.hata);return;}
+  gorevleriYukle();
+}
 let chatInterval=null;
 async function chatYukle(){
   const ms=await apicagir('/api/chat');
   const k=document.getElementById('chat-mesajlar'); k.innerHTML='';
-  if(Array.isArray(ms))ms.forEach(m=>{
-    const benim=m.kullanici_id===kullanici.id;
-    const d=document.createElement('div'); d.className='chat-msg'+(benim?' benim':'');
-    const av='<div class="avatar" style="width:34px;height:34px;font-size:12px;background:'+(m.renk||'#24467c')+'22;color:'+(m.renk||'#24467c')+'">'+basHarfleri(m.ad_soyad||m.kullanici_adi)+'</div>';
-    const t=new Date((m.tarih||'').replace(' ','T')+'Z').toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
-    d.innerHTML=av+'<div class="balon"><div class="gonderen" style="color:'+(m.renk||'#24467c')+'">'+(m.ad_soyad||m.kullanici_adi)+'</div><div class="metin">'+m.metin.replace(/</g,'&lt;')+'</div><div class="zaman">'+t+'</div></div>';
-    k.appendChild(d);
-  });
+	  if(Array.isArray(ms))ms.forEach(m=>{
+	    const benim=m.kullanici_id===kullanici.id;
+	    const d=document.createElement('div'); d.className='chat-msg'+(benim?' benim':'');
+	    const renk=guvenliRenk(m.renk);
+	    const av='<div class="avatar" style="width:34px;height:34px;font-size:12px;background:'+renk+'22;color:'+renk+'">'+esc(basHarfleri(m.ad_soyad||m.kullanici_adi))+'</div>';
+	    const t=new Date((m.tarih||'').replace(' ','T')+'Z').toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
+	    d.innerHTML=av+'<div class="balon"><div class="gonderen" style="color:'+renk+'">'+esc(m.ad_soyad||m.kullanici_adi)+'</div><div class="metin">'+esc(m.metin)+'</div><div class="zaman">'+esc(t)+'</div></div>';
+	    k.appendChild(d);
+	  });
   k.scrollTop=k.scrollHeight;
   if(!chatInterval)chatInterval=setInterval(()=>{if(document.getElementById("sayfa-chat").classList.contains("aktif"))chatYukle();},2000);
 }
@@ -1379,18 +1502,26 @@ async function chatSifirla(){
 }
 let excelTip='il', excelSonuclar=[];
 function excelModalAc(tip){
-  excelTip=tip;
-  document.getElementById('excel-modal-baslik').textContent=(tip==='il'?'İl':'İlçe')+' Excel Yükle';
+  excelTip=guvenliExcelTip(tip);
+  document.getElementById('excel-modal-baslik').textContent=(excelTip==='il'?'İl':'İlçe')+' Excel Yükle';
   document.getElementById('excel-dosya').value='';
   document.getElementById('excel-sonuc').innerHTML='';
   document.getElementById('excel-uygula-btn').style.display='none';
-  document.getElementById('sablon-link').onclick=(e)=>{e.preventDefault();sablonIndir(tip);};
+  document.getElementById('sablon-link').onclick=(e)=>{e.preventDefault();sablonIndir(excelTip);};
   document.getElementById('excel-modal').classList.add('aktif');
 }
 async function sablonIndir(tip){
-  const r=await fetch('/api/excel/sablon?tip='+tip,{headers:{'Authorization':'Bearer '+token}});
+  const guvenliTip=guvenliExcelTip(tip);
+  let r;
+  try{
+    r=await fetch('/api/excel/sablon?tip='+encodeURIComponent(guvenliTip),{headers:{'Authorization':'Bearer '+token}});
+  }catch(e){
+    toast('Şablon indirilemedi.');return;
+  }
+  if(r.status===401){localStorage.clear();window.location.href='/';return;}
+  if(!r.ok){toast('Şablon indirilemedi.');return;}
   const blob=await r.blob(); const u=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=u; a.download='sablon-'+tip+'.xlsx'; a.click(); URL.revokeObjectURL(u);
+  const a=document.createElement('a'); a.href=u; a.download='sablon-'+guvenliTip+'.xlsx'; a.click(); URL.revokeObjectURL(u);
 }
 async function excelOnizle(){
   const f=document.getElementById('excel-dosya').files[0]; if(!f)return;
@@ -1402,14 +1533,14 @@ async function excelOnizle(){
     window._excelDosyaCache = r.result; // AI icin sakla
     const s=await apicagir('/api/excel/onizle','POST',{dosya:r.result,tip:excelTip});
     if(s.hata){
-      document.getElementById('excel-sonuc').innerHTML='<p style="color:var(--error)">'+s.hata+'</p>';
+      document.getElementById('excel-sonuc').innerHTML='<p style="color:var(--error)">'+esc(s.hata)+'</p>';
       document.getElementById('excel-ai-bolum').style.display='block';
       return;
     }
     excelSonuclar=s.sonuclar;
-    let h='<div style="background:var(--success-bg);color:var(--success);padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px"><b>'+s.toplam+'</b> kayıt eşleştirildi.</div>';
-    if(s.taninanSutunlar&&s.taninanSutunlar.length)h+='<p style="font-size:12px;color:var(--secondary);margin-bottom:8px">Tanınan sütunlar: '+s.taninanSutunlar.map(x=>x.baslik).join(', ')+'</p>';
-    if(s.sorunlar&&s.sorunlar.length){h+='<div style="background:var(--error-container);color:var(--on-error-container);padding:10px;border-radius:8px;font-size:12px;margin-bottom:10px"><b>'+s.sorunlar.length+' satırda sorun:</b><br>'+s.sorunlar.slice(0,8).map(p=>'Satır '+p.satir+': '+p.sorun).join('<br>')+'</div>';}
+    let h='<div style="background:var(--success-bg);color:var(--success);padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px"><b>'+esc(s.toplam)+'</b> kayıt eşleştirildi.</div>';
+    if(s.taninanSutunlar&&s.taninanSutunlar.length)h+='<p style="font-size:12px;color:var(--secondary);margin-bottom:8px">Tanınan sütunlar: '+s.taninanSutunlar.map(x=>esc(x.baslik)).join(', ')+'</p>';
+    if(s.sorunlar&&s.sorunlar.length){h+='<div style="background:var(--error-container);color:var(--on-error-container);padding:10px;border-radius:8px;font-size:12px;margin-bottom:10px"><b>'+esc(s.sorunlar.length)+' satırda sorun:</b><br>'+s.sorunlar.slice(0,8).map(p=>'Satır '+esc(p.satir)+': '+esc(p.sorun)).join('<br>')+'</div>';}
     document.getElementById('excel-sonuc').innerHTML=h;
     if(s.toplam>0)document.getElementById('excel-uygula-btn').style.display='block';
     // AI butonu sundu
@@ -1425,30 +1556,30 @@ async function excelAiOnizle(){
   document.getElementById('excel-sonuc').innerHTML='<p style="color:var(--secondary)">Yapay zeka analiz ediyor... (10-30 saniye sürebilir)</p>';
   const s=await apicagir('/api/excel/ai-onizle','POST',{dosya,tip:excelTip});
   if(s.hata){
-    document.getElementById('excel-sonuc').innerHTML='<p style="color:var(--error)">'+s.hata+'</p>';
+    document.getElementById('excel-sonuc').innerHTML='<p style="color:var(--error)">'+esc(s.hata)+'</p>';
     return;
   }
   excelSonuclar=s.sonuclar;
-  let h='<div style="background:var(--success-bg);color:var(--success);padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px"><b>'+s.toplam+'</b> kayıt eşleştirildi.</div>';
-  if(s.sonuclar.length){
+  let h='<div style="background:var(--success-bg);color:var(--success);padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px"><b>'+esc(s.toplam)+'</b> kayıt eşleştirildi.</div>';
+  if(Array.isArray(s.sonuclar)&&s.sonuclar.length){
     h+='<p style="font-size:12px;color:var(--secondary);margin-bottom:8px">İlk birkaç kayıt önizleme:</p>';
     h+='<div style="max-height:200px;overflow-y:auto;background:var(--surface-low);border-radius:8px;padding:10px;font-size:11px">';
     s.sonuclar.slice(0,5).forEach(k=>{
       h+='<div style="border-bottom:1px solid var(--outline-variant);padding:6px 0">';
-      if(k.il_adi)h+='<b>'+k.il_adi+'</b>';
-      if(k.ilce_adi)h+=' / '+k.ilce_adi;
-      if(k.baskan_ad_soyad)h+=' — '+k.baskan_ad_soyad;
-      if(k.baskan_telefon)h+=' ('+k.baskan_telefon+')';
+      if(k.il_adi)h+='<b>'+esc(k.il_adi)+'</b>';
+      if(k.ilce_adi)h+=' / '+esc(k.ilce_adi);
+      if(k.baskan_ad_soyad)h+=' — '+esc(k.baskan_ad_soyad);
+      if(k.baskan_telefon)h+=' ('+esc(k.baskan_telefon)+')';
       h+='</div>';
     });
     h+='</div>';
   }
-  if(s.sorunlar&&s.sorunlar.length){h+='<div style="background:var(--error-container);color:var(--on-error-container);padding:10px;border-radius:8px;font-size:12px;margin-top:10px"><b>'+s.sorunlar.length+' kayıt atlandı:</b><br>'+s.sorunlar.slice(0,5).map(p=>p.sorun).join('<br>')+'</div>';}
+  if(s.sorunlar&&s.sorunlar.length){h+='<div style="background:var(--error-container);color:var(--on-error-container);padding:10px;border-radius:8px;font-size:12px;margin-top:10px"><b>'+esc(s.sorunlar.length)+' kayıt atlandı:</b><br>'+s.sorunlar.slice(0,5).map(p=>esc(p.sorun)).join('<br>')+'</div>';}
   document.getElementById('excel-sonuc').innerHTML=h;
   if(s.toplam>0)document.getElementById('excel-uygula-btn').style.display='block';
 }
 async function excelUygula(){
-  const s=await apicagir('/api/excel/uygula','POST',{sonuclar:excelSonuclar,tip:excelTip});
+  const s=await apicagir('/api/excel/uygula','POST',{sonuclar:excelSonuclar,tip:guvenliExcelTip(excelTip)});
   if(s.hata){toast(s.hata);return;}
   modalKapat('excel-modal');
   toast(s.basarili+' kayıt güncellendi.');
@@ -1458,15 +1589,22 @@ async function excelUygula(){
 async function excelDisaAktar(tip, ilIds){
   // Menüleri kapat
   document.querySelectorAll('.indir-menu').forEach(m=>m.style.display='none');
-  let url = '/api/excel/disa-aktar?tip='+tip;
-  if(ilIds && ilIds.length) url += '&il_ids=' + ilIds.join(',');
-  const r=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
+  const guvenliTip=guvenliExcelTip(tip);
+  let url = '/api/excel/disa-aktar?tip='+encodeURIComponent(guvenliTip);
+  if(ilIds && ilIds.length) url += '&il_ids=' + ilIds.map(guvenliId).filter(Boolean).join(',');
+  let r;
+  try{
+    r=await fetch(url,{headers:{'Authorization':'Bearer '+token}});
+  }catch(e){
+    toast('Excel oluşturulamadı.');return;
+  }
+  if(r.status===401){localStorage.clear();window.location.href='/';return;}
   if(!r.ok){toast('Excel oluşturulamadı.');return;}
   const blob=await r.blob(); const u=URL.createObjectURL(blob);
   const a=document.createElement('a'); a.href=u;
   let dosyaAdi = 'iller.xlsx';
-  if (tip === 'ilce') dosyaAdi = 'ilceler.xlsx';
-  else if (tip === 'birlesik') dosyaAdi = 'iller-ve-ilceler.xlsx';
+  if (guvenliTip === 'ilce') dosyaAdi = 'ilceler.xlsx';
+  else if (guvenliTip === 'birlesik') dosyaAdi = 'iller-ve-ilceler.xlsx';
   a.download = dosyaAdi; a.click(); URL.revokeObjectURL(u);
   toast('Excel indirildi.');
 }
@@ -1503,7 +1641,7 @@ async function ilSeciminiIndir(){
       '<button class="btn btn-ikincil" onclick="ilSecHepsi(false)" style="font-size:12px;padding:6px 12px">Seçimi Temizle</button>'+
     '</div>'+
     '<div style="max-height:400px;overflow-y:auto;border:1px solid var(--outline-variant);border-radius:8px;padding:10px"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px">'+
-      iller.map(il => '<label style="display:flex;align-items:center;gap:6px;padding:4px;font-size:13px;cursor:pointer"><input type="checkbox" class="il-secim-cb" value="'+il.id+'"><span>'+il.plaka+' - '+il.il_adi+'</span></label>').join('')+
+      iller.map(il => '<label style="display:flex;align-items:center;gap:6px;padding:4px;font-size:13px;cursor:pointer"><input type="checkbox" class="il-secim-cb" value="'+guvenliId(il.id)+'"><span>'+esc(il.plaka)+' - '+esc(il.il_adi)+'</span></label>').join('')+
     '</div></div>'+
     '<div class="modal-btnlar" style="margin-top:14px">'+
       '<button class="kaydet" onclick="ilSecimGonder(\'il\')">İl Bilgilerini İndir</button>'+
@@ -1519,7 +1657,7 @@ function ilSecHepsi(secili){
 }
 
 async function ilSecimGonder(tip){
-  const secili = Array.from(document.querySelectorAll('.il-secim-cb:checked')).map(cb => parseInt(cb.value));
+  const secili = Array.from(document.querySelectorAll('.il-secim-cb:checked')).map(cb => guvenliId(cb.value)).filter(Boolean);
   if(!secili.length){toast('Lütfen en az 1 il seçin.');return;}
   await excelDisaAktar(tip, secili);
   document.getElementById('il-secim-modal').remove();
@@ -1612,18 +1750,20 @@ async function bildirimleriYenile(ilkYukleme){
       liste.innerHTML = '<p class="bildirim-bos">Henüz bildirim yok.</p>';
     } else {
       liste.innerHTML = '';
-      d.bildirimler.forEach(b => {
-        const k = document.createElement('div');
-        k.className = 'bildirim-kart' + (b.okundu ? '' : ' okunmamis');
-        const tarih = new Date((b.olusturulma_tarihi||'').replace(' ','T')+'Z');
-        const tarihStr = isNaN(tarih) ? '' : tarih.toLocaleDateString('tr-TR', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
-        k.innerHTML = '<button class="b-sil" onclick="event.stopPropagation();bildirimSil('+b.id+')" title="Sil">×</button>'+
-          '<div class="b-baslik">'+b.baslik+'</div>'+
-          (b.icerik?'<div class="b-icerik">'+b.icerik+'</div>':'')+
-          '<div class="b-tarih">'+tarihStr+'</div>';
-        k.onclick = async () => {
-          if(!b.okundu) await apicagir('/api/bildirimler/'+b.id+'/okundu','PUT');
-          if(b.link) location.hash = b.link.split('#')[1] || '';
+	      d.bildirimler.forEach(b => {
+	        const k = document.createElement('div');
+	        k.className = 'bildirim-kart' + (b.okundu ? '' : ' okunmamis');
+	        const tarih = new Date((b.olusturulma_tarihi||'').replace(' ','T')+'Z');
+	        const tarihStr = isNaN(tarih) ? '' : tarih.toLocaleDateString('tr-TR', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+	        const bId=guvenliId(b.id);
+	        k.innerHTML = '<button class="b-sil" onclick="event.stopPropagation();bildirimSil('+bId+')" title="Sil">×</button>'+
+	          '<div class="b-baslik">'+esc(b.baslik)+'</div>'+
+	          (b.icerik?'<div class="b-icerik">'+esc(b.icerik)+'</div>':'')+
+	          '<div class="b-tarih">'+esc(tarihStr)+'</div>';
+	        k.onclick = async () => {
+	          if(!b.okundu) await apicagir('/api/bildirimler/'+bId+'/okundu','PUT');
+	          const hash=guvenliHash(b.link);
+	          if(hash) location.hash = hash;
           bildirimPanelKapat();
           bildirimleriYenile(false);
           // Eger gorev bildirimi ise gorevler sayfasina git
@@ -1638,15 +1778,15 @@ async function bildirimleriYenile(ilkYukleme){
       const yeniler = d.bildirimler.filter(b => b.id > bildirimSonId && !b.okundu);
       yeniler.forEach(b => {
         try{
-          new Notification(b.baslik, {
-            body: b.icerik || '',
-            icon: '/favicon.ico',
-            tag: 'bildirim-'+b.id
-          });
+	          new Notification(metin(b.baslik), {
+	            body: metin(b.icerik),
+	            icon: '/favicon.ico',
+	            tag: 'bildirim-'+guvenliId(b.id)
+	          });
         }catch(e){}
       });
     }
-    if(d.bildirimler.length) bildirimSonId = Math.max(bildirimSonId, ...d.bildirimler.map(b=>b.id));
+	    if(d.bildirimler.length) bildirimSonId = Math.max(bildirimSonId, ...d.bildirimler.map(b=>guvenliId(b.id)));
   } catch(e){}
 }
 
@@ -1667,7 +1807,8 @@ async function bildirimleriTumOkundu(){
 }
 
 async function bildirimSil(id){
-  await apicagir('/api/bildirimler/'+id,'DELETE');
+  const bId=guvenliId(id); if(!bId)return;
+  await apicagir('/api/bildirimler/'+bId,'DELETE');
   bildirimleriYenile(false);
 }
 
@@ -1706,7 +1847,7 @@ function chatAciciKapat(){
 
 function sonGorulduMetin(sonGiris){
   if(!sonGiris) return 'Henüz giriş yapmadı';
-  const t = new Date(sonGiris.replace(' ','T')+'Z');
+  const t = new Date(metin(sonGiris).replace(' ','T')+'Z');
   if(isNaN(t)) return '';
   const fark = (Date.now() - t.getTime()) / 60000; // dakika
   if(fark < 5) return 'Çevrimiçi';
@@ -1717,7 +1858,7 @@ function sonGorulduMetin(sonGiris){
 
 function sonGorulduSinif(sonGiris){
   if(!sonGiris) return '';
-  const t = new Date(sonGiris.replace(' ','T')+'Z');
+  const t = new Date(metin(sonGiris).replace(' ','T')+'Z');
   if(isNaN(t)) return '';
   const fark = (Date.now() - t.getTime()) / 60000;
   if(fark < 5) return 'online';
@@ -1727,14 +1868,16 @@ function sonGorulduSinif(sonGiris){
 
 async function chatKisileriYukle(){
   try{
-    const [sohbetler, tumKullanicilar] = await Promise.all([
-      apicagir('/api/ozel-mesaj/sohbetler'),
-      apicagir('/api/ozel-mesaj/kullanicilar')
-    ]);
-    // Birlestir: once aktif sohbetler, sonra hic mesajlasmadigi diger kisiler
-    const aktifIds = new Set((sohbetler||[]).map(s=>s.kisi_id));
-    const digerleri = (tumKullanicilar||[]).filter(k => !aktifIds.has(k.id));
-    chatKisilerListesi = [...(sohbetler||[]), ...digerleri.map(k=>({...k, kisi_id:k.id, okunmamis:0}))];
+	    const [sohbetler, tumKullanicilar] = await Promise.all([
+	      apicagir('/api/ozel-mesaj/sohbetler'),
+	      apicagir('/api/ozel-mesaj/kullanicilar')
+	    ]);
+	    // Birlestir: once aktif sohbetler, sonra hic mesajlasmadigi diger kisiler
+	    const sohbetDizi = Array.isArray(sohbetler) ? sohbetler : [];
+	    const kullaniciDizi = Array.isArray(tumKullanicilar) ? tumKullanicilar : [];
+	    const aktifIds = new Set(sohbetDizi.map(s=>guvenliId(s.kisi_id)));
+	    const digerleri = kullaniciDizi.filter(k => !aktifIds.has(guvenliId(k.id)));
+	    chatKisilerListesi = [...sohbetDizi, ...digerleri.map(k=>({...k, kisi_id:k.id, okunmamis:0}))];
     chatKisileriListele();
   }catch(e){
     document.getElementById('chat-acici-liste').innerHTML = '<p style="text-align:center;color:var(--outline);padding:20px;font-size:13px">Yüklenemedi.</p>';
@@ -1752,84 +1895,90 @@ function chatKisileriListele(){
     liste.innerHTML = '<p style="text-align:center;color:var(--outline);padding:20px;font-size:13px">Kişi bulunamadı.</p>';
     return;
   }
-  liste.innerHTML = '';
-  kisiler.forEach(k => {
-    const onlineSinif = sonGorulduSinif(k.son_giris);
-    const onlineMetin = sonGorulduMetin(k.son_giris);
-    const av = k.profil_foto
-      ? '<img src="'+k.profil_foto+'" class="avatar" style="border-radius:50%;object-fit:cover">'
-      : '<div class="avatar" style="background:'+(k.renk||'#24467c')+'22;color:'+(k.renk||'#24467c')+'">'+basHarfleri(k.ad_soyad||k.kullanici_adi)+'</div>';
-    const onlineNokta = onlineSinif === 'online' ? '<span class="online-nokta"></span>' : '';
-    const durumMetin = k.son_mesaj ? k.son_mesaj.substring(0,40)+(k.son_mesaj.length>40?'...':'') : onlineMetin;
-    const durumSinif = k.son_mesaj ? '' : onlineSinif;
-    const rozet = k.okunmamis > 0 ? '<span class="kisi-rozet">'+k.okunmamis+'</span>' : '';
-    const d = document.createElement('div');
-    d.className = 'chat-kisi-kart';
-    d.innerHTML = '<div class="avatar" style="position:relative;width:40px;height:40px;background:'+(k.renk||'#24467c')+'22;color:'+(k.renk||'#24467c')+'">'+
-      basHarfleri(k.ad_soyad||k.kullanici_adi)+onlineNokta+'</div>'+
-      '<div class="kisi-bilgi"><div class="kisi-ad">'+(k.ad_soyad||k.kullanici_adi)+'</div>'+
-      '<div class="kisi-durum '+durumSinif+'">'+durumMetin+'</div></div>'+rozet;
-    d.onclick = () => { sohbetAc(k.kisi_id, k.ad_soyad||k.kullanici_adi, k.renk, k.son_giris); chatAciciKapat(); };
-    liste.appendChild(d);
-  });
+	  liste.innerHTML = '';
+	  kisiler.forEach(k => {
+	    const onlineSinif = sonGorulduSinif(k.son_giris);
+	    const onlineMetin = sonGorulduMetin(k.son_giris);
+	    const renk=guvenliRenk(k.renk);
+	    const kisiId=guvenliId(k.kisi_id);
+	    const av = resimHTML(k.profil_foto,'avatar','border-radius:50%;object-fit:cover')||
+	      '<div class="avatar" style="background:'+renk+'22;color:'+renk+'">'+esc(basHarfleri(k.ad_soyad||k.kullanici_adi))+'</div>';
+	    const onlineNokta = onlineSinif === 'online' ? '<span class="online-nokta"></span>' : '';
+	    const sonMesaj=metin(k.son_mesaj);
+	    const durumMetin = sonMesaj ? sonMesaj.substring(0,40)+(sonMesaj.length>40?'...':'') : onlineMetin;
+	    const durumSinif = k.son_mesaj ? '' : onlineSinif;
+	    const rozet = k.okunmamis > 0 ? '<span class="kisi-rozet">'+esc(k.okunmamis)+'</span>' : '';
+	    const d = document.createElement('div');
+	    d.className = 'chat-kisi-kart';
+	    d.innerHTML = '<div style="position:relative;width:40px;height:40px">'+av+onlineNokta+'</div>'+
+	      '<div class="kisi-bilgi"><div class="kisi-ad">'+esc(k.ad_soyad||k.kullanici_adi)+'</div>'+
+	      '<div class="kisi-durum '+esc(durumSinif)+'">'+esc(durumMetin)+'</div></div>'+rozet;
+	    d.onclick = () => { sohbetAc(kisiId, k.ad_soyad||k.kullanici_adi, renk, k.son_giris); chatAciciKapat(); };
+	    liste.appendChild(d);
+	  });
 }
 
 function chatKisilerFiltrele(){ chatKisileriListele(); }
 
 async function sohbetAc(kisiId, kisiAdi, renk, sonGiris){
+  const kisiIdSafe=guvenliId(kisiId); if(!kisiIdSafe)return;
+  const kisiAdiMetin=metin(kisiAdi);
+  const renkSafe=guvenliRenk(renk);
   // Zaten acik mi?
-  if(acikSohbetler[kisiId]){
-    const p = acikSohbetler[kisiId].pencere;
+  if(acikSohbetler[kisiIdSafe]){
+    const p = acikSohbetler[kisiIdSafe].pencere;
     p.classList.remove('kucuk');
-    sohbetOdaklan(kisiId);
+    sohbetOdaklan(kisiIdSafe);
     return;
   }
 
   // Yeni pencere olustur
   const pencere = document.createElement('div');
   pencere.className = 'sohbet-pencere';
-  pencere.dataset.kisiId = kisiId;
+  pencere.dataset.kisiId = kisiIdSafe;
   pencere.innerHTML =
-    '<div class="sohbet-baslik" onclick="sohbetKucult('+kisiId+')">'+
-      '<div class="avatar" style="background:'+(renk||'#24467c')+'33">'+basHarfleri(kisiAdi)+'</div>'+
+    '<div class="sohbet-baslik" onclick="sohbetKucult('+kisiIdSafe+')">'+
+      '<div class="avatar" style="background:'+renkSafe+'33">'+esc(basHarfleri(kisiAdiMetin))+'</div>'+
       '<div class="b-bilgi">'+
-        '<div class="b-ad">'+kisiAdi+'</div>'+
-        '<div class="b-durum" id="sohbet-durum-'+kisiId+'">'+sonGorulduMetin(sonGiris)+'</div>'+
+        '<div class="b-ad">'+esc(kisiAdiMetin)+'</div>'+
+        '<div class="b-durum" id="sohbet-durum-'+kisiIdSafe+'">'+esc(sonGorulduMetin(sonGiris))+'</div>'+
       '</div>'+
       '<div class="b-aksiyon">'+
-        '<button onclick="event.stopPropagation();sohbetSil('+kisiId+',\''+kisiAdi.replace(/\x27/g,"\\\x27")+'\')" title="Sohbeti sil">🗑</button>'+
-        '<button onclick="event.stopPropagation();sohbetKucult('+kisiId+')" title="Küçült">−</button>'+
-        '<button onclick="event.stopPropagation();sohbetKapat('+kisiId+')" title="Kapat">✕</button>'+
+        '<button data-sohbet-sil title="Sohbeti sil">🗑</button>'+
+        '<button onclick="event.stopPropagation();sohbetKucult('+kisiIdSafe+')" title="Küçült">−</button>'+
+        '<button onclick="event.stopPropagation();sohbetKapat('+kisiIdSafe+')" title="Kapat">✕</button>'+
       '</div>'+
     '</div>'+
-    '<div class="sohbet-icerik" id="sohbet-icerik-'+kisiId+'"></div>'+
+    '<div class="sohbet-icerik" id="sohbet-icerik-'+kisiIdSafe+'"></div>'+
     '<div class="sohbet-input-bar">'+
-      '<input type="text" id="sohbet-input-'+kisiId+'" placeholder="Mesaj yaz..." onkeydown="sohbetTusBas(event,'+kisiId+')" oninput="sohbetYazilmaBildir('+kisiId+')">'+
-      '<button onclick="sohbetGonder('+kisiId+')" title="Gönder"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>'+
+      '<input type="text" id="sohbet-input-'+kisiIdSafe+'" placeholder="Mesaj yaz..." onkeydown="sohbetTusBas(event,'+kisiIdSafe+')" oninput="sohbetYazilmaBildir('+kisiIdSafe+')">'+
+      '<button onclick="sohbetGonder('+kisiIdSafe+')" title="Gönder"><svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg></button>'+
     '</div>';
   document.getElementById('acik-sohbetler').appendChild(pencere);
-  acikSohbetler[kisiId] = { pencere, son_mesaj_id: 0, yaziyor_timer: null };
+  pencere.querySelector('[data-sohbet-sil]').onclick=(e)=>{e.stopPropagation();sohbetSil(kisiIdSafe,kisiAdiMetin);};
+  acikSohbetler[kisiIdSafe] = { pencere, son_mesaj_id: 0, yaziyor_timer: null };
 
   // Mesajlari yukle
-  await sohbetMesajlariYukle(kisiId);
-  sohbetOdaklan(kisiId);
+  await sohbetMesajlariYukle(kisiIdSafe);
+  sohbetOdaklan(kisiIdSafe);
 }
 
 async function sohbetMesajlariYukle(kisiId, sessizce){
   try{
-    const m = await apicagir('/api/ozel-mesaj/'+kisiId);
-    const i = document.getElementById('sohbet-icerik-'+kisiId);
+    const kisiIdSafe=guvenliId(kisiId); if(!kisiIdSafe)return;
+    const m = await apicagir('/api/ozel-mesaj/'+kisiIdSafe);
+    const i = document.getElementById('sohbet-icerik-'+kisiIdSafe);
     if(!i || !Array.isArray(m)) return;
 
     // Yaziyor satirini koru, yeni mesajlari ekle veya tum listeyi tazele
-    if(!sessizce || !acikSohbetler[kisiId] || acikSohbetler[kisiId].son_mesaj_id === 0){
+    if(!sessizce || !acikSohbetler[kisiIdSafe] || acikSohbetler[kisiIdSafe].son_mesaj_id === 0){
       // Tam yenile
       i.innerHTML = '';
-      m.forEach(msj => sohbetMesajEkle(i, msj, kisiId));
+      m.forEach(msj => sohbetMesajEkle(i, msj, kisiIdSafe));
     } else {
       // Sadece yeni mesajlari ekle
-      const yeni = m.filter(msj => msj.id > acikSohbetler[kisiId].son_mesaj_id);
-      yeni.forEach(msj => sohbetMesajEkle(i, msj, kisiId));
+      const yeni = m.filter(msj => guvenliId(msj.id) > acikSohbetler[kisiIdSafe].son_mesaj_id);
+      yeni.forEach(msj => sohbetMesajEkle(i, msj, kisiIdSafe));
       if(yeni.length){
         i.scrollTop = i.scrollHeight;
         // Yeni karsi mesaj geldi - ses (basit beep)
@@ -1838,19 +1987,21 @@ async function sohbetMesajlariYukle(kisiId, sessizce){
         }
       }
     }
-    if(m.length) acikSohbetler[kisiId].son_mesaj_id = Math.max(...m.map(msj=>msj.id));
+    if(m.length) acikSohbetler[kisiIdSafe].son_mesaj_id = Math.max(...m.map(msj=>guvenliId(msj.id)));
     if(!sessizce) i.scrollTop = i.scrollHeight;
 
     // Yaziyor durumunu kontrol et
-    await sohbetYaziyorKontrol(kisiId);
+    await sohbetYaziyorKontrol(kisiIdSafe);
   }catch(e){}
 }
 
 function sohbetMesajEkle(container, msj, kisiId){
   const benim = msj.gonderen_id === kullanici.id;
+  const mesajId=guvenliId(msj.id);
+  const kisiIdSafe=guvenliId(kisiId);
   const d = document.createElement('div');
   d.className = 's-mesaj-wrap ' + (benim ? 'benim-wrap' : 'karsi-wrap');
-  d.dataset.id = msj.id;
+  d.dataset.id = mesajId;
   const t = new Date((msj.tarih||'').replace(' ','T')+'Z').toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'});
   // Okundu gostergesi sadece kendi mesajlarimizda
   let okunduIkon = '';
@@ -1864,10 +2015,10 @@ function sohbetMesajEkle(container, msj, kisiId){
     }
   }
   d.innerHTML = '<div class="s-mesaj '+(benim?'benim':'karsi')+'">'+
-    '<div>'+msj.metin.replace(/</g,'&lt;')+'</div>'+
-    '<div class="s-zaman">'+t+okunduIkon+'</div>'+
+    '<div>'+esc(msj.metin)+'</div>'+
+    '<div class="s-zaman">'+esc(t)+okunduIkon+'</div>'+
     '</div>'+
-    '<button class="s-mesaj-sil" onclick="mesajSil('+msj.id+','+kisiId+')" title="Mesajı sil">×</button>';
+    '<button class="s-mesaj-sil" onclick="mesajSil('+mesajId+','+kisiIdSafe+')" title="Mesajı sil">×</button>';
   // Yaziyor satiri varsa onun ustune ekle
   const yz = container.querySelector('.yaziyor-gosterge');
   if(yz) container.insertBefore(d, yz);
@@ -1876,8 +2027,9 @@ function sohbetMesajEkle(container, msj, kisiId){
 
 async function sohbetYaziyorKontrol(kisiId){
   try{
-    const r = await apicagir('/api/ozel-mesaj/yaziyor/'+kisiId);
-    const i = document.getElementById('sohbet-icerik-'+kisiId);
+    const kisiIdSafe=guvenliId(kisiId); if(!kisiIdSafe)return;
+    const r = await apicagir('/api/ozel-mesaj/yaziyor/'+kisiIdSafe);
+    const i = document.getElementById('sohbet-icerik-'+kisiIdSafe);
     if(!i) return;
     const mevcut = i.querySelector('.yaziyor-gosterge');
     if(r && r.yaziyor){
@@ -1896,10 +2048,11 @@ async function sohbetYaziyorKontrol(kisiId){
 
 let yazilmaBildirTimer = null;
 function sohbetYazilmaBildir(kisiId){
+  const kisiIdSafe=guvenliId(kisiId); if(!kisiIdSafe)return;
   // Aşırı bildirim yapmamak için son 2 sn de bildirdiysek tekrar etmesin
   if(yazilmaBildirTimer) return;
   yazilmaBildirTimer = setTimeout(()=>{ yazilmaBildirTimer = null; }, 2000);
-  apicagir('/api/ozel-mesaj/yaziyor/'+kisiId,'PUT').catch(()=>{});
+  apicagir('/api/ozel-mesaj/yaziyor/'+kisiIdSafe,'PUT').catch(()=>{});
 }
 
 function sohbetTusBas(e, kisiId){
@@ -1910,53 +2063,60 @@ function sohbetTusBas(e, kisiId){
 }
 
 async function sohbetGonder(kisiId){
-  const inp = document.getElementById('sohbet-input-'+kisiId);
+  const kisiIdSafe=guvenliId(kisiId); if(!kisiIdSafe)return;
+  const inp = document.getElementById('sohbet-input-'+kisiIdSafe);
+  if(!inp)return;
   const metin = inp.value.trim();
   if(!metin) return;
   inp.value = '';
-  const s = await apicagir('/api/ozel-mesaj','POST',{alici_id:kisiId, metin});
+  const s = await apicagir('/api/ozel-mesaj','POST',{alici_id:kisiIdSafe, metin});
   if(s.hata){toast(s.hata);return;}
-  await sohbetMesajlariYukle(kisiId, true);
+  await sohbetMesajlariYukle(kisiIdSafe, true);
   inp.focus();
 }
 
 function sohbetKucult(kisiId){
-  if(!acikSohbetler[kisiId]) return;
-  acikSohbetler[kisiId].pencere.classList.toggle('kucuk');
+  const kisiIdSafe=guvenliId(kisiId);
+  if(!acikSohbetler[kisiIdSafe]) return;
+  acikSohbetler[kisiIdSafe].pencere.classList.toggle('kucuk');
 }
 
 function sohbetKapat(kisiId){
-  if(!acikSohbetler[kisiId]) return;
-  acikSohbetler[kisiId].pencere.remove();
-  delete acikSohbetler[kisiId];
+  const kisiIdSafe=guvenliId(kisiId);
+  if(!acikSohbetler[kisiIdSafe]) return;
+  acikSohbetler[kisiIdSafe].pencere.remove();
+  delete acikSohbetler[kisiIdSafe];
 }
 
 async function sohbetSil(kisiId, kisiAdi){
-  if(!confirm(kisiAdi + ' ile olan tüm sohbeti silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz.')) return;
-  const r = await apicagir('/api/ozel-mesaj/sohbet/'+kisiId,'DELETE');
+  const kisiIdSafe=guvenliId(kisiId); if(!kisiIdSafe)return;
+  if(!confirm(metin(kisiAdi) + ' ile olan tüm sohbeti silmek istediğinize emin misiniz?\n\nBu işlem geri alınamaz.')) return;
+  const r = await apicagir('/api/ozel-mesaj/sohbet/'+kisiIdSafe,'DELETE');
   if(r.hata){toast(r.hata);return;}
   // Pencereyi kapat
-  sohbetKapat(kisiId);
+  sohbetKapat(kisiIdSafe);
   toast('Sohbet silindi.');
   chatBalonYenile();
 }
 
 async function mesajSil(mesajId, kisiId){
-  if(!confirm('Bu mesajı silmek istediğinize emin misiniz?')) return;
-  const r = await apicagir('/api/ozel-mesaj/mesaj/'+mesajId,'DELETE');
+  const mesajIdSafe=guvenliId(mesajId), kisiIdSafe=guvenliId(kisiId);
+  if(!mesajIdSafe||!kisiIdSafe||!confirm('Bu mesajı silmek istediğinize emin misiniz?')) return;
+  const r = await apicagir('/api/ozel-mesaj/mesaj/'+mesajIdSafe,'DELETE');
   if(r.hata){toast(r.hata);return;}
   // Sohbeti yenile
-  if(acikSohbetler[kisiId]){
-    acikSohbetler[kisiId].son_mesaj_id = 0;
-    await sohbetMesajlariYukle(kisiId);
+  if(acikSohbetler[kisiIdSafe]){
+    acikSohbetler[kisiIdSafe].son_mesaj_id = 0;
+    await sohbetMesajlariYukle(kisiIdSafe);
   }
 }
 
 function sohbetOdaklan(kisiId){
+  const kisiIdSafe=guvenliId(kisiId);
   setTimeout(()=>{
-    const inp = document.getElementById('sohbet-input-'+kisiId);
+    const inp = document.getElementById('sohbet-input-'+kisiIdSafe);
     if(inp) inp.focus();
-    const i = document.getElementById('sohbet-icerik-'+kisiId);
+    const i = document.getElementById('sohbet-icerik-'+kisiIdSafe);
     if(i) i.scrollTop = i.scrollHeight;
   }, 50);
 }
@@ -2000,7 +2160,8 @@ let notKaydetTimer = null;
 
 async function notlariYukle(){
   try {
-    notlar = await apicagir('/api/notlar') || [];
+    const yanit = await apicagir('/api/notlar');
+    notlar = Array.isArray(yanit) ? yanit : [];
   } catch(e){ notlar = []; }
   notlariListele();
   if(notlar.length && !aktifNot){
@@ -2017,21 +2178,23 @@ function notlariListele(){
   if(!notlar.length){ l.innerHTML='<p style="text-align:center;color:var(--outline);padding:20px;font-size:13px">Henüz not yok</p>'; return; }
   notlar.forEach(n => {
     const k = document.createElement('div');
-    k.className = 'not-kart'+(aktifNot && aktifNot.id===n.id?' aktif':'');
+    const notId=guvenliId(n.id);
+    k.className = 'not-kart'+(aktifNot && guvenliId(aktifNot.id)===notId?' aktif':'');
     const oniz = (n.icerik||'').replace(/<[^>]+>/g,'').trim().substring(0,80);
     const tarih = new Date((n.guncellenme_tarihi||'').replace(' ','T')+'Z');
     const tarihStr = isNaN(tarih) ? '' : tarih.toLocaleDateString('tr-TR', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-    k.innerHTML='<div class="not-baslik">'+(n.baslik||'Başlıksız')+'</div>'+
-      (oniz?'<div class="not-onizleme">'+oniz+'</div>':'')+
-      '<div class="not-tarih">'+tarihStr+'</div>'+
-      '<button class="not-sil" onclick="event.stopPropagation();notSil('+n.id+')">×</button>';
-    k.onclick = () => notSec(n.id);
+    k.innerHTML='<div class="not-baslik">'+esc(n.baslik||'Başlıksız')+'</div>'+
+      (oniz?'<div class="not-onizleme">'+esc(oniz)+'</div>':'')+
+      '<div class="not-tarih">'+esc(tarihStr)+'</div>'+
+      '<button class="not-sil" onclick="event.stopPropagation();notSil('+notId+')">×</button>';
+    k.onclick = () => notSec(notId);
     l.appendChild(k);
   });
 }
 
 function notSec(id){
-  const n = notlar.find(x => x.id===id); if(!n) return;
+  const notId=guvenliId(id);
+  const n = notlar.find(x => guvenliId(x.id)===notId); if(!n) return;
   aktifNot = n;
   document.getElementById('notlar-bos').style.display='none';
   document.getElementById('notlar-editor-icerik').style.display='flex';
@@ -2052,11 +2215,12 @@ async function notYeni(){
 }
 
 async function notSil(id){
+  const notId=guvenliId(id); if(!notId)return;
   if(!confirm('Bu notu silmek istediğinize emin misiniz?')) return;
-  const s = await apicagir('/api/notlar/'+id,'DELETE');
+  const s = await apicagir('/api/notlar/'+notId,'DELETE');
   if(s.hata){toast(s.hata);return;}
-  notlar = notlar.filter(n => n.id !== id);
-  if(aktifNot && aktifNot.id === id) aktifNot = null;
+  notlar = notlar.filter(n => guvenliId(n.id) !== notId);
+  if(aktifNot && guvenliId(aktifNot.id) === notId) aktifNot = null;
   notlariListele();
   if(notlar.length && !aktifNot){
     notSec(notlar[0].id);
@@ -2075,14 +2239,15 @@ function notKaydetGecikmeli(){
 
 async function notKaydet(){
   if(!aktifNot) return;
+  const notId = guvenliId(aktifNot.id); if(!notId) return;
   const baslik = document.getElementById('not-baslik').value || 'Başlıksız';
   const icerik = document.getElementById('not-icerik').innerHTML;
   document.getElementById('not-kaydet-durum').textContent='Kaydediliyor...';
-  const s = await apicagir('/api/notlar/'+aktifNot.id,'PUT',{baslik, icerik});
+  const s = await apicagir('/api/notlar/'+notId,'PUT',{baslik, icerik});
   if(s.hata){ document.getElementById('not-kaydet-durum').textContent='Hata: '+s.hata; return; }
   aktifNot.baslik = baslik; aktifNot.icerik = icerik;
   aktifNot.guncellenme_tarihi = new Date().toISOString().slice(0,19).replace('T',' ');
-  notlar = [aktifNot, ...notlar.filter(n => n.id !== aktifNot.id)];
+  notlar = [aktifNot, ...notlar.filter(n => guvenliId(n.id) !== notId)];
   notlariListele();
   document.getElementById('not-kaydet-durum').textContent='Kayıtlı ✓';
 }
@@ -2118,19 +2283,23 @@ async function topluIlModalAc(){
   const tbody = document.querySelector('#toplu-il-tablo tbody');
   tbody.innerHTML = '';
   iller.forEach(il => {
-    const tr = document.createElement('tr');
-    tr.dataset.id = il.id;
-    tr.innerHTML =
-      '<td>'+il.il_adi+'</td>'+
-      '<td><input type="text" name="baskan_ad_soyad" value="'+(il.baskan_ad_soyad||'')+'"></td>'+
-      '<td><input type="text" name="baskan_telefon" value="'+(il.baskan_telefon||'')+'"></td>'+
-      '<td><input type="text" name="baskan_tc" value="'+(il.baskan_tc||'')+'" maxlength="11"></td>'+
-      '<td class="foto-hucre"><img src="'+(il.baskan_foto||'')+'" style="display:'+(il.baskan_foto?'block':'none')+'" data-foto><input type="hidden" name="baskan_foto" value="'+(il.baskan_foto||'')+'"><label class="foto-btn">📷<input type="file" accept="image/*" style="display:none" onchange="topluFotoSec(this)"></label></td>'+
-      '<td><input type="text" name="instagram_url" value="'+(il.instagram_url||'')+'"></td>'+
-      '<td><input type="text" name="twitter_url" value="'+(il.twitter_url||'')+'"></td>'+
-      '<td><input type="text" name="facebook_url" value="'+(il.facebook_url||'')+'"></td>'+
-      '<td><input type="text" name="tiktok_url" value="'+(il.tiktok_url||'')+'"></td>';
-    tbody.appendChild(tr);
+    const ilId=guvenliId(il.id);
+    if(ilId){
+      const tr = document.createElement('tr');
+      const fotoUrl=resimUrl(il.baskan_foto);
+      tr.dataset.id = ilId;
+      tr.innerHTML =
+        '<td>'+esc(il.il_adi)+'</td>'+
+        '<td><input type="text" name="baskan_ad_soyad" value="'+esc(il.baskan_ad_soyad)+'"></td>'+
+        '<td><input type="text" name="baskan_telefon" value="'+esc(il.baskan_telefon)+'"></td>'+
+        '<td><input type="text" name="baskan_tc" value="'+esc(il.baskan_tc)+'" maxlength="11"></td>'+
+        '<td class="foto-hucre"><img src="'+esc(fotoUrl)+'" alt="" style="display:'+(fotoUrl?'block':'none')+'" data-foto><input type="hidden" name="baskan_foto" value="'+esc(il.baskan_foto)+'"><label class="foto-btn">📷<input type="file" accept="image/*" style="display:none" onchange="topluFotoSec(this)"></label></td>'+
+        '<td><input type="text" name="instagram_url" value="'+esc(il.instagram_url)+'"></td>'+
+        '<td><input type="text" name="twitter_url" value="'+esc(il.twitter_url)+'"></td>'+
+        '<td><input type="text" name="facebook_url" value="'+esc(il.facebook_url)+'"></td>'+
+        '<td><input type="text" name="tiktok_url" value="'+esc(il.tiktok_url)+'"></td>';
+      tbody.appendChild(tr);
+    }
   });
   document.getElementById('toplu-il-modal').classList.add('aktif');
 }
@@ -2138,9 +2307,12 @@ async function topluIlModalAc(){
 async function topluIlKaydet(){
   const satirlar = [];
   document.querySelectorAll('#toplu-il-tablo tbody tr').forEach(tr => {
-    const obj = { id: parseInt(tr.dataset.id) };
-    tr.querySelectorAll('input[name]').forEach(inp => { obj[inp.name] = inp.value.trim(); });
-    satirlar.push(obj);
+    const ilId=guvenliId(tr.dataset.id);
+    if(ilId){
+      const obj = { id: ilId };
+      tr.querySelectorAll('input[name]').forEach(inp => { obj[inp.name] = inp.value.trim(); });
+      satirlar.push(obj);
+    }
   });
   const s = await apicagir('/api/iller/toplu','POST',{satirlar});
   if(s.hata){toast(s.hata);return;}
@@ -2154,8 +2326,9 @@ async function topluIlKaydet(){
 async function topluIlceModalAc(){
   if(!seciliIlId){toast('Önce bir il seçin.');return;}
   document.getElementById('toplu-ilce-baslik').textContent = seciliIlAdi + ' — Toplu İlçe Düzenle';
-  document.getElementById('toplu-ilce-il-id').value = seciliIlId;
-  const ilceler = await apicagir('/api/ilceler?il_id=' + seciliIlId);
+  const ilId=guvenliId(seciliIlId);
+  document.getElementById('toplu-ilce-il-id').value = ilId;
+  const ilceler = await apicagir('/api/ilceler?il_id=' + encodeURIComponent(ilId));
   const tbody = document.querySelector('#toplu-ilce-tablo tbody');
   tbody.innerHTML = '';
   (Array.isArray(ilceler)?ilceler:[]).forEach(ic => topluIlceSatirEkle(tbody, ic));
@@ -2165,18 +2338,20 @@ async function topluIlceModalAc(){
 
 function topluIlceSatirEkle(tbody, ic){
   const tr = document.createElement('tr');
-  if(ic && ic.id) tr.dataset.id = ic.id;
-  const adHucre = ic ? ic.ilce_adi : '<input type="text" name="ilce_adi" placeholder="+ Yeni ilçe adı">';
+  const icId=guvenliId(ic && ic.id);
+  if(icId) tr.dataset.id = icId;
+  const fotoUrl=resimUrl(ic && ic.baskan_foto);
+  const adHucre = ic ? esc(ic.ilce_adi) : '<input type="text" name="ilce_adi" placeholder="+ Yeni ilçe adı">';
   tr.innerHTML =
     '<td>'+adHucre+'</td>'+
-    '<td><input type="text" name="baskan_ad_soyad" value="'+(ic && ic.baskan_ad_soyad||'')+'"></td>'+
-    '<td><input type="text" name="baskan_telefon" value="'+(ic && ic.baskan_telefon||'')+'"></td>'+
-    '<td><input type="text" name="baskan_tc" value="'+(ic && ic.baskan_tc||'')+'" maxlength="11"></td>'+
-    '<td class="foto-hucre"><img src="'+(ic && ic.baskan_foto||'')+'" style="display:'+(ic && ic.baskan_foto?'block':'none')+'" data-foto><input type="hidden" name="baskan_foto" value="'+(ic && ic.baskan_foto||'')+'"><label class="foto-btn">📷<input type="file" accept="image/*" style="display:none" onchange="topluFotoSec(this)"></label></td>'+
-    '<td><input type="text" name="instagram_url" value="'+(ic && ic.instagram_url||'')+'"></td>'+
-    '<td><input type="text" name="twitter_url" value="'+(ic && ic.twitter_url||'')+'"></td>'+
-    '<td><input type="text" name="facebook_url" value="'+(ic && ic.facebook_url||'')+'"></td>'+
-    '<td><input type="text" name="tiktok_url" value="'+(ic && ic.tiktok_url||'')+'"></td>';
+    '<td><input type="text" name="baskan_ad_soyad" value="'+esc(ic && ic.baskan_ad_soyad)+'"></td>'+
+    '<td><input type="text" name="baskan_telefon" value="'+esc(ic && ic.baskan_telefon)+'"></td>'+
+    '<td><input type="text" name="baskan_tc" value="'+esc(ic && ic.baskan_tc)+'" maxlength="11"></td>'+
+    '<td class="foto-hucre"><img src="'+esc(fotoUrl)+'" alt="" style="display:'+(fotoUrl?'block':'none')+'" data-foto><input type="hidden" name="baskan_foto" value="'+esc(ic && ic.baskan_foto)+'"><label class="foto-btn">📷<input type="file" accept="image/*" style="display:none" onchange="topluFotoSec(this)"></label></td>'+
+    '<td><input type="text" name="instagram_url" value="'+esc(ic && ic.instagram_url)+'"></td>'+
+    '<td><input type="text" name="twitter_url" value="'+esc(ic && ic.twitter_url)+'"></td>'+
+    '<td><input type="text" name="facebook_url" value="'+esc(ic && ic.facebook_url)+'"></td>'+
+    '<td><input type="text" name="tiktok_url" value="'+esc(ic && ic.tiktok_url)+'"></td>';
   tbody.appendChild(tr);
   if(!ic){
     const inp = tr.querySelector('input[name="ilce_adi"]');
@@ -2191,11 +2366,12 @@ function topluIlceSatirEkle(tbody, ic){
 }
 
 async function topluIlceKaydet(){
-  const il_id = parseInt(document.getElementById('toplu-ilce-il-id').value);
+  const il_id = guvenliId(document.getElementById('toplu-ilce-il-id').value);
   const satirlar = [];
   document.querySelectorAll('#toplu-ilce-tablo tbody tr').forEach(tr => {
     const obj = {};
-    if(tr.dataset.id) obj.id = parseInt(tr.dataset.id);
+    const icId=guvenliId(tr.dataset.id);
+    if(icId) obj.id = icId;
     tr.querySelectorAll('input[name]').forEach(inp => { obj[inp.name] = inp.value.trim(); });
     if(!obj.id && !obj.ilce_adi) return;
     satirlar.push(obj);
@@ -2217,7 +2393,7 @@ async function topluFotoSec(input){
     const td = input.closest('td');
     td.querySelector('input[type="hidden"]').value = s.url;
     const img = td.querySelector('img[data-foto]');
-    img.src = s.url; img.style.display='block';
+    resimKaynakAta(img,s.url);
   };
   r.readAsDataURL(f);
 }
@@ -2225,13 +2401,15 @@ async function topluFotoSec(input){
 let haritaSeciliIl = null;
 // Haritada il'e tiklayinca ayni sayfada altta acilan ilce paneli
 async function haritaIlceAc(il_id, il_adi){
-  haritaSeciliIl = { id: il_id, adi: il_adi };
-  document.getElementById('harita-ilce-baslik').textContent = il_adi + ' — İlçeler';
+  const ilId=guvenliId(il_id); if(!ilId)return;
+  const ilAdi=metin(il_adi);
+  haritaSeciliIl = { id: ilId, adi: ilAdi };
+  document.getElementById('harita-ilce-baslik').textContent = ilAdi + ' — İlçeler';
   document.getElementById('harita-ilce-paneli').style.display = 'block';
 
   // Il'in baskan bilgilerini de ozet olarak goster
   try {
-    const il = await apicagir('/api/iller/' + il_id);
+    const il = await apicagir('/api/iller/' + ilId);
     const ozet = document.getElementById('harita-il-baskan-ozet');
     if (il && (il.baskan_ad_soyad || il.baskan_foto)) {
       ozet.innerHTML = '<div style="background:var(--surface-low);padding:14px;border-radius:12px;display:flex;align-items:center;gap:14px"><div style="font-size:11px;color:var(--secondary);text-transform:uppercase;letter-spacing:.5px;font-weight:600;min-width:140px">İl Tanıtım ve Medya Başkanı</div>' + baskanHucre(il) + '<div style="margin-left:auto">' + sosyalHucre(il) + '</div></div>';
@@ -2241,15 +2419,16 @@ async function haritaIlceAc(il_id, il_adi){
   } catch(e){ document.getElementById('harita-il-baskan-ozet').innerHTML = ''; }
 
   // Ilceleri yukle
-  const ilceler = await apicagir('/api/ilceler?il_id=' + il_id);
+  const ilceler = await apicagir('/api/ilceler?il_id=' + encodeURIComponent(ilId));
   const tb = document.getElementById('harita-ilce-tablosu'); tb.innerHTML = '';
   if (!Array.isArray(ilceler) || !ilceler.length) {
     tb.innerHTML = '<tr><td colspan="4" class="bos-mesaj">Bu ile henüz ilçe eklenmemiş.</td></tr>';
   } else {
     ilceler.forEach(ic => {
       const tr = document.createElement('tr');
-      tr.innerHTML = '<td><b>' + ic.ilce_adi + '</b></td><td>' + baskanHucre(ic) + '</td><td>' + sosyalHucre(ic) + '</td>' +
-        '<td><button class="islem-btn" onclick="haritadaIlceDuzenle(' + ic.id + ')">Düzenle</button></td>';
+      const icId=guvenliId(ic.id);
+      tr.innerHTML = '<td><b>' + esc(ic.ilce_adi) + '</b></td><td>' + baskanHucre(ic) + '</td><td>' + sosyalHucre(ic) + '</td>' +
+        '<td><button class="islem-btn" onclick="haritadaIlceDuzenle(' + icId + ')">Düzenle</button></td>';
       tb.appendChild(tr);
     });
   }
@@ -2264,14 +2443,15 @@ function haritaIlceKapat(){
 }
 function haritaIlceDuzenle(){
   if (!haritaSeciliIl) return;
-  ilDuzenle(haritaSeciliIl.id);
+  const ilId=guvenliId(haritaSeciliIl.id); if(!ilId)return;
+  ilDuzenle(ilId);
 }
 async function haritadaIlceDuzenle(id){
   if (!haritaSeciliIl) return;
+  const icId=guvenliId(id); if(!icId)return;
   // Mevcut ilceDuzenle fonksiyonu seciliIlId'yi kullanir, gecici set edelim
-  const eskiSecili = seciliIlId, eskiSeciliAd = seciliIlAdi;
   seciliIlId = haritaSeciliIl.id; seciliIlAdi = haritaSeciliIl.adi;
-  await ilceDuzenle(id);
+  await ilceDuzenle(icId);
   // Modal kapatildiginda haritadaki paneli yenilemek icin
   // ilceKaydet zaten ilSecVeIlceleriGoster cagiriyor, biz haritadan geliyoruz, geri yukleyelim
 }
@@ -2285,7 +2465,7 @@ window.ilKaydet = async function(){
 };
 const _orjinalIlceKaydet = window.ilceKaydet;
 window.ilceKaydet = async function(){
-  const il_id = parseInt(document.getElementById('ilce-il-id').value);
+  const il_id = guvenliId(document.getElementById('ilce-il-id').value);
   await _orjinalIlceKaydet();
   if (haritaSeciliIl && haritaSeciliIl.id === il_id) {
     haritaIlceAc(haritaSeciliIl.id, haritaSeciliIl.adi);

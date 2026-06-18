@@ -42,6 +42,8 @@ router.get('/', tokenDogrula, (req, res) => {
 router.post('/', tokenDogrula, adminVeyaYardimci, (req, res) => {
     const { kullanici_id, baslik, aciklama, oncelik, kategori, son_tarih, tekrar } = req.body;
     if (!kullanici_id || !baslik) return res.status(400).json({ hata: 'Kullanıcı ve başlık gereklidir.' });
+    const hedef = db.prepare('SELECT id FROM kullanicilar WHERE id = ?').get(kullanici_id);
+    if (!hedef) return res.status(404).json({ hata: 'Kullanıcı bulunamadı.' });
 
     const oncelikDeg = ['dusuk','normal','acil'].includes(oncelik) ? oncelik : 'normal';
     const tekrarDeg = ['tek','haftalik','aylik'].includes(tekrar) ? tekrar : 'tek';
@@ -100,10 +102,14 @@ router.put('/:id/durum', tokenDogrula, (req, res) => {
     if (req.kullanici.rol !== 'admin' && req.kullanici.rol !== 'yardimci' && g.kullanici_id !== req.kullanici.id) {
         return res.status(403).json({ hata: 'Yetkiniz yok.' });
     }
+    if (g.durum === durum) {
+        return res.json({ mesaj: 'Görev zaten bu durumda.' });
+    }
+
     db.prepare('UPDATE gorevler SET durum = ? WHERE id = ?').run(durum, req.params.id);
 
     // Tamamlandiginda olusturani bilgilendir + tekrarliysa yeni gorev olustur
-    if (durum === 'tamamlandi') {
+    if (durum === 'tamamlandi' && g.durum !== 'tamamlandi') {
         if (g.olusturan_id && g.olusturan_id !== req.kullanici.id) {
             const k = db.prepare('SELECT ad_soyad, kullanici_adi FROM kullanicilar WHERE id = ?').get(g.kullanici_id);
             const ad = k?.ad_soyad || k?.kullanici_adi || 'Kullanıcı';
