@@ -142,6 +142,26 @@
                         ></fieldset>
                     </div>
                     <div class="grup">Sorumlu Olacağı İller</div>
+                    <div class="il-arama-bar">
+                        <input
+                            type="text"
+                            id="il-arama-input"
+                            placeholder="İl Ara..."
+                            data-input-call="kullaniciIlAra(event)"
+                        />
+                        <div class="il-toplu-butonlar">
+                            <button type="button" class="btn-link" data-action-call="kullaniciIlHepsiniSec()">
+                                Tümünü Seç
+                            </button>
+                            <button
+                                type="button"
+                                class="btn-link temizle-btn"
+                                data-action-call="kullaniciIlHepsiniTemizle()"
+                            >
+                                Temizle
+                            </button>
+                        </div>
+                    </div>
                     <div class="il-secim" id="il-secim-kutu"></div>
                     <div class="modal-btnlar">
                         <button type="button" class="kaydet" data-action-call="kullaniciKaydet()">Kaydet</button
@@ -177,19 +197,7 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
                         <div>
                             <label for="gorev-oncelik">Öncelik</label>
-                            <select
-                                id="gorev-oncelik"
-                                style="
-                                    width: 100%;
-                                    background: var(--surface-low);
-                                    border: 1px solid var(--outline-variant);
-                                    border-radius: 9px;
-                                    padding: 11px;
-                                    font-size: 14px;
-                                    font-family: inherit;
-                                    margin-bottom: 15px;
-                                "
-                            >
+                            <select id="gorev-oncelik">
                                 <option value="dusuk">Düşük</option>
                                 <option value="normal" selected>Normal</option>
                                 <option value="acil">🚨 Acil</option>
@@ -197,19 +205,7 @@
                         </div>
                         <div>
                             <label for="gorev-kategori">Kategori</label>
-                            <select
-                                id="gorev-kategori"
-                                style="
-                                    width: 100%;
-                                    background: var(--surface-low);
-                                    border: 1px solid var(--outline-variant);
-                                    border-radius: 9px;
-                                    padding: 11px;
-                                    font-size: 14px;
-                                    font-family: inherit;
-                                    margin-bottom: 15px;
-                                "
-                            >
+                            <select id="gorev-kategori">
                                 <option value="sosyal_medya">Sosyal Medya</option>
                                 <option value="organizasyon">Organizasyon</option>
                                 <option value="raporlama">Raporlama</option>
@@ -225,19 +221,7 @@
                         </div>
                         <div>
                             <label for="gorev-tekrar">Tekrar</label>
-                            <select
-                                id="gorev-tekrar"
-                                style="
-                                    width: 100%;
-                                    background: var(--surface-low);
-                                    border: 1px solid var(--outline-variant);
-                                    border-radius: 9px;
-                                    padding: 11px;
-                                    font-size: 14px;
-                                    font-family: inherit;
-                                    margin-bottom: 15px;
-                                "
-                            >
+                            <select id="gorev-tekrar">
                                 <option value="tek" selected>Tek seferlik</option>
                                 <option value="haftalik">Her hafta tekrarlı</option>
                                 <option value="aylik">Her ay tekrarlı</option>

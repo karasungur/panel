@@ -139,10 +139,25 @@ export function createPrivateChatFeature(ctx) {
         const renkSafe = guvenliRenk(renk);
         // Zaten acik mi?
         if (state.acikSohbetler[kisiIdSafe]) {
+            // Digerlerini kucult (mobilde odaklanilan tek kalsin)
+            if (window.innerWidth < 600) {
+                Object.keys(state.acikSohbetler).forEach((id) => {
+                    if (guvenliId(id) !== kisiIdSafe) {
+                        state.acikSohbetler[id].pencere.classList.add('kucuk');
+                    }
+                });
+            }
             const p = state.acikSohbetler[kisiIdSafe].pencere;
             p.classList.remove('kucuk');
             sohbetOdaklan(kisiIdSafe);
             return;
+        }
+
+        // Mobilde tek pencere gosterimi icin digerlerini kucult
+        if (window.innerWidth < 600) {
+            Object.keys(state.acikSohbetler).forEach((id) => {
+                state.acikSohbetler[id].pencere.classList.add('kucuk');
+            });
         }
 
         // Yeni pencere olustur
@@ -171,13 +186,13 @@ export function createPrivateChatFeature(ctx) {
             '<div class="b-aksiyon">' +
             '<button type="button" data-sohbet-sil data-action-call="sohbetSil(event, ' +
             kisiIdSafe +
-            ')" title="Sohbeti sil">🗑</button>' +
+            ')" title="Sohbeti sil"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>' +
             '<button type="button" data-action-call="sohbetKucult(event, ' +
             kisiIdSafe +
-            ')" title="Küçült">−</button>' +
+            ')" title="Küçült"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M19 13H5v-2h14v2z"/></svg></button>' +
             '<button type="button" data-action-call="sohbetKapat(event, ' +
             kisiIdSafe +
-            ')" title="Kapat">✕</button>' +
+            ')" title="Kapat"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>' +
             '</div>' +
             '</div>' +
             '<div class="sohbet-icerik" id="sohbet-icerik-' +
@@ -211,6 +226,9 @@ export function createPrivateChatFeature(ctx) {
             const i = document.getElementById('sohbet-icerik-' + kisiIdSafe);
             if (!i || !Array.isArray(m)) return;
 
+            const isAtBottom = i.scrollHeight - i.scrollTop - i.clientHeight < 50;
+            const isFirstLoad = i.children.length === 0;
+
             // Yaziyor satirini koru, yeni mesajlari ekle veya tum listeyi tazele
             if (!sessizce || !state.acikSohbetler[kisiIdSafe] || state.acikSohbetler[kisiIdSafe].son_mesaj_id === 0) {
                 // Tam yenile
@@ -221,15 +239,19 @@ export function createPrivateChatFeature(ctx) {
                 const yeni = m.filter((msj) => guvenliId(msj.id) > state.acikSohbetler[kisiIdSafe].son_mesaj_id);
                 yeni.forEach((msj) => sohbetMesajEkle(i, msj, kisiIdSafe));
                 if (yeni.length) {
-                    i.scrollTop = i.scrollHeight;
-                    // Yeni karsi mesaj geldi - ses (basit beep)
-                    if (yeni.some((msj) => msj.gonderen_id !== state.kullanici.id)) {
-                        // sessizce true ise ana ekran zaten yenilemeli
+                    if (isAtBottom || state.acikSohbetler[kisiIdSafe].justSent) {
+                        i.scrollTop = i.scrollHeight;
+                        state.acikSohbetler[kisiIdSafe].justSent = false;
                     }
                 }
             }
             if (m.length) state.acikSohbetler[kisiIdSafe].son_mesaj_id = Math.max(...m.map((msj) => guvenliId(msj.id)));
-            if (!sessizce) i.scrollTop = i.scrollHeight;
+            if (!sessizce || isFirstLoad || state.acikSohbetler[kisiIdSafe]?.justSent) {
+                i.scrollTop = i.scrollHeight;
+                if (state.acikSohbetler[kisiIdSafe]) {
+                    state.acikSohbetler[kisiIdSafe].justSent = false;
+                }
+            }
 
             // Yaziyor durumunu kontrol et
             await sohbetYaziyorKontrol(kisiIdSafe);
@@ -330,9 +352,15 @@ export function createPrivateChatFeature(ctx) {
         const metin = inp.value.trim();
         if (!metin) return;
         inp.value = '';
+        if (state.acikSohbetler[kisiIdSafe]) {
+            state.acikSohbetler[kisiIdSafe].justSent = true;
+        }
         const s = await apicagir('/api/ozel-mesaj', 'POST', { alici_id: kisiIdSafe, metin });
         if (s.hata) {
             toast(s.hata);
+            if (state.acikSohbetler[kisiIdSafe]) {
+                state.acikSohbetler[kisiIdSafe].justSent = false;
+            }
             return;
         }
         await sohbetMesajlariYukle(kisiIdSafe, true);

@@ -1,5 +1,6 @@
 export function createNotesFeature(ctx) {
-    const { state, metin, esc, guvenliId, toast, apicagir } = ctx;
+    const { state, esc, guvenliId, toast, apicagir } = ctx;
+
     async function notlariYukle() {
         try {
             const yanit = await apicagir('/api/notlar');
@@ -13,6 +14,8 @@ export function createNotesFeature(ctx) {
         } else if (!state.notlar.length) {
             document.getElementById('notlar-bos').style.display = 'flex';
             document.getElementById('notlar-editor-icerik').style.display = 'none';
+            const editorWrap = document.getElementById('sayfa-notlar');
+            if (editorWrap) editorWrap.classList.remove('editor-aktif');
             state.aktifNot = null;
         }
     }
@@ -52,7 +55,7 @@ export function createNotesFeature(ctx) {
                 '</div>' +
                 '<button type="button" class="not-sil" data-action-call="notSil(event, ' +
                 notId +
-                ')">×</button>';
+                ')" title="Notu Sil"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>';
             k.onclick = () => notSec(notId);
             l.appendChild(k);
         });
@@ -75,7 +78,13 @@ export function createNotesFeature(ctx) {
         document.getElementById('notlar-editor-icerik').style.display = 'flex';
         document.getElementById('not-baslik').value = n.baslik || '';
         document.getElementById('not-icerik').innerHTML = n.icerik || '';
-        document.getElementById('not-kaydet-durum').textContent = 'Kayıtlı';
+
+        // Show check icon in state
+        document.getElementById('not-kaydet-durum').innerHTML = 'Kayıtlı <span class="kayit-check">✓</span>';
+
+        const editorWrap = document.getElementById('sayfa-notlar');
+        if (editorWrap) editorWrap.classList.add('editor-aktif');
+
         notlariListele();
     }
 
@@ -112,6 +121,8 @@ export function createNotesFeature(ctx) {
         } else if (!state.notlar.length) {
             document.getElementById('notlar-bos').style.display = 'flex';
             document.getElementById('notlar-editor-icerik').style.display = 'none';
+            const editorWrap = document.getElementById('sayfa-notlar');
+            if (editorWrap) editorWrap.classList.remove('editor-aktif');
         }
     }
 
@@ -154,7 +165,10 @@ export function createNotesFeature(ctx) {
         if (!snapshot) return;
         state.notBekleyenSnapshot = snapshot;
         const seq = ++state.notKaydetSeq;
-        document.getElementById('not-kaydet-durum').textContent = 'Yazılıyor...';
+
+        // Show saving state with animating text
+        document.getElementById('not-kaydet-durum').innerHTML = 'Kaydediliyor <span class="kayit-spinner"></span>';
+
         clearTimeout(state.notKaydetTimer);
         state.notKaydetTimer = setTimeout(() => {
             state.notKaydetTimer = null;
@@ -175,7 +189,7 @@ export function createNotesFeature(ctx) {
         if (!notId) return;
         const aktifId = state.aktifNot ? guvenliId(state.aktifNot.id) : 0;
         if (seq === state.notKaydetSeq && aktifId === notId) {
-            document.getElementById('not-kaydet-durum').textContent = 'Kaydediliyor...';
+            document.getElementById('not-kaydet-durum').innerHTML = 'Kaydediliyor <span class="kayit-spinner"></span>';
         }
         const s = await apicagir('/api/notlar/' + notId, 'PUT', {
             baslik: snapshot.baslik,
@@ -197,7 +211,7 @@ export function createNotesFeature(ctx) {
             state.aktifNot = kayit;
             document.getElementById('not-baslik').value = kayit.baslik || '';
             document.getElementById('not-icerik').innerHTML = kayit.icerik || '';
-            document.getElementById('not-kaydet-durum').textContent = 'Kayıtlı ✓';
+            document.getElementById('not-kaydet-durum').innerHTML = 'Kayıtlı <span class="kayit-check">✓</span>';
         }
         if (guncelCevap || !halaAktif) notlariListele();
     }
@@ -224,74 +238,20 @@ export function createNotesFeature(ctx) {
         return { editor, selection, range };
     }
 
-    function notImleciSonaTasi(node) {
-        const selection = window.getSelection();
-        if (!selection) return;
-        const range = document.createRange();
-        range.selectNodeContents(node);
-        range.collapse(false);
-        selection.removeAllRanges();
-        selection.addRange(range);
-    }
-
-    function notSecimiEtiketle(tagName) {
-        const baglam = notSecimBaglamiAl();
-        if (!baglam) return;
-        const el = document.createElement(tagName);
-        if (baglam.range.collapsed) {
-            el.appendChild(document.createTextNode('\u200b'));
-        } else {
-            el.appendChild(baglam.range.extractContents());
-        }
-        baglam.range.insertNode(el);
-        notImleciSonaTasi(el);
-    }
-
-    function notBlokAta(deger) {
-        const baglam = notSecimBaglamiAl();
-        if (!baglam) return;
-        const tagName =
-            { H1: 'h1', H2: 'h2', H3: 'h3', P: 'p', BLOCKQUOTE: 'blockquote' }[metin(deger).toUpperCase()] || 'p';
-        const baslangic =
-            baglam.range.startContainer.nodeType === Node.ELEMENT_NODE
-                ? baglam.range.startContainer
-                : baglam.range.startContainer.parentElement;
-        const blok = baslangic?.closest('h1,h2,h3,p,blockquote,li,div');
-        if (blok && blok !== baglam.editor && baglam.editor.contains(blok)) {
-            const yeniBlok = document.createElement(tagName);
-            while (blok.firstChild) yeniBlok.appendChild(blok.firstChild);
-            blok.replaceWith(yeniBlok);
-            notImleciSonaTasi(yeniBlok);
-            return;
-        }
-        notSecimiEtiketle(tagName);
-    }
-
-    function notListeEkle(tagName) {
-        const baglam = notSecimBaglamiAl();
-        if (!baglam) return;
-        const liste = document.createElement(tagName);
-        const madde = document.createElement('li');
-        if (baglam.range.collapsed) madde.appendChild(document.createElement('br'));
-        else madde.appendChild(baglam.range.extractContents());
-        liste.appendChild(madde);
-        baglam.range.insertNode(liste);
-        notImleciSonaTasi(madde);
-    }
-
     function notFormat(komut, deger) {
-        const komutMap = {
-            bold: () => notSecimiEtiketle('strong'),
-            italic: () => notSecimiEtiketle('em'),
-            underline: () => notSecimiEtiketle('u'),
-            formatBlock: () => notBlokAta(deger),
-            insertUnorderedList: () => notListeEkle('ul'),
-            insertOrderedList: () => notListeEkle('ol')
-        };
-        const uygula = komutMap[komut];
-        if (uygula) uygula();
+        notSecimBaglamiAl();
+        if (komut === 'formatBlock') {
+            document.execCommand(komut, false, deger ? '<' + deger.toLowerCase() + '>' : 'p');
+        } else {
+            document.execCommand(komut, false, deger);
+        }
         document.getElementById('not-icerik').focus();
         notKaydetGecikmeli();
+    }
+
+    function notGeriDon() {
+        const editorWrap = document.getElementById('sayfa-notlar');
+        if (editorWrap) editorWrap.classList.remove('editor-aktif');
     }
 
     function init() {
@@ -333,7 +293,8 @@ export function createNotesFeature(ctx) {
             notBekleyenKaydiFlushEt,
             notKaydetGecikmeli,
             notKaydet,
-            notFormat
+            notFormat,
+            notGeriDon
         },
         pageLoaders: { notlar: notlariYukle },
         init

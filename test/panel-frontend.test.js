@@ -83,6 +83,249 @@ function createNotificationDom(t) {
     return { fakeLocation, liste, panel };
 }
 
+function createClassList(initialClasses = []) {
+    const classes = new Set(initialClasses);
+    return {
+        add(className) {
+            classes.add(className);
+        },
+        remove(className) {
+            classes.delete(className);
+        },
+        contains(className) {
+            return classes.has(className);
+        }
+    };
+}
+
+function createDomElement(options = {}) {
+    const element = {
+        children: [],
+        className: '',
+        classList: createClassList(options.classes),
+        focusCalled: false,
+        onclick: null,
+        style: {},
+        value: '',
+        appendChild(child) {
+            this.children.push(child);
+        },
+        focus() {
+            this.focusCalled = true;
+        }
+    };
+    Object.defineProperty(element, 'innerHTML', {
+        get() {
+            return this._innerHTML || '';
+        },
+        set(value) {
+            this._innerHTML = value;
+            if (value === '') this.children = [];
+        }
+    });
+    return element;
+}
+
+function createNotesDom(t) {
+    const previousDocument = global.document;
+    const elements = {
+        'notlar-liste-icerik': createDomElement(),
+        'notlar-bos': createDomElement(),
+        'notlar-editor-icerik': createDomElement(),
+        'not-baslik': createDomElement(),
+        'not-icerik': createDomElement(),
+        'not-kaydet-durum': createDomElement(),
+        'sayfa-notlar': createDomElement()
+    };
+    const fakeDocument = {
+        createElement() {
+            return createDomElement();
+        },
+        getElementById(id) {
+            return elements[id] || null;
+        }
+    };
+
+    Object.defineProperty(global, 'document', {
+        configurable: true,
+        writable: true,
+        value: fakeDocument
+    });
+
+    t.after(() => {
+        restoreGlobal('document', previousDocument);
+    });
+
+    return { elements };
+}
+
+function createNotesContext(responses, stateOverrides = {}) {
+    const apiCalls = [];
+    const state = {
+        aktifNot: null,
+        notBekleyenSnapshot: null,
+        notKaydetSeq: 0,
+        notKaydetTimer: null,
+        notlar: [],
+        notSecimSeq: 0,
+        ...stateOverrides
+    };
+
+    return {
+        apiCalls,
+        state,
+        ctx: {
+            state,
+            esc(value) {
+                return String(value ?? '');
+            },
+            guvenliId(value) {
+                const id = Number.parseInt(value, 10);
+                return Number.isSafeInteger(id) && id > 0 ? id : 0;
+            },
+            toast() {},
+            async apicagir(url, method = 'GET', body = null) {
+                apiCalls.push([url, method, body]);
+                return responses.shift();
+            }
+        }
+    };
+}
+
+function notesTestNote(id) {
+    return {
+        id,
+        baslik: 'Not ' + id,
+        icerik: '<p>Icerik ' + id + '</p>',
+        guncellenme_tarihi: '2026-06-19 10:00:00'
+    };
+}
+
+function createPublicChatDom(t, options = {}) {
+    const previousDocument = global.document;
+    const previousSetInterval = global.setInterval;
+    const intervals = [];
+    const chatMessages = {
+        children: Array.from({ length: options.childrenCount || 0 }, () => ({})),
+        clientHeight: options.clientHeight ?? 100,
+        scrollHeight: options.scrollHeight ?? 0,
+        scrollTop: options.scrollTop ?? 0,
+        _innerHTML: '',
+        appendChild(el) {
+            this.children.push(el);
+            this.scrollHeight = this.children.length * 80;
+        }
+    };
+    Object.defineProperty(chatMessages, 'innerHTML', {
+        get() {
+            return this._innerHTML;
+        },
+        set(value) {
+            this._innerHTML = value;
+            if (value === '') {
+                this.children = [];
+                this.scrollTop = 0;
+                this.scrollHeight = 0;
+            }
+        }
+    });
+    const chatPage = {
+        classList: {
+            contains(className) {
+                return className === 'aktif';
+            }
+        }
+    };
+    const fakeDocument = {
+        createElement() {
+            return { className: '', innerHTML: '' };
+        },
+        getElementById(id) {
+            if (id === 'chat-mesajlar') return chatMessages;
+            if (id === 'sayfa-chat') return chatPage;
+            return null;
+        }
+    };
+
+    Object.defineProperty(global, 'document', {
+        configurable: true,
+        writable: true,
+        value: fakeDocument
+    });
+    Object.defineProperty(global, 'setInterval', {
+        configurable: true,
+        writable: true,
+        value(callback, delay) {
+            const interval = { callback, delay };
+            intervals.push(interval);
+            return interval;
+        }
+    });
+
+    t.after(() => {
+        restoreGlobal('document', previousDocument);
+        restoreGlobal('setInterval', previousSetInterval);
+    });
+
+    return { chatMessages, intervals };
+}
+
+function createPublicChatContext(responses, stateOverrides = {}) {
+    const apiCalls = [];
+    const state = {
+        kullanici: { id: 1 },
+        chatInterval: null,
+        chatLastMsgKey: null,
+        chatJustSent: false,
+        ...stateOverrides
+    };
+
+    return {
+        apiCalls,
+        state,
+        ctx: {
+            state,
+            esc(value) {
+                return String(value ?? '');
+            },
+            guvenliRenk(value) {
+                return value || '#24467c';
+            },
+            toast() {},
+            basHarfleri() {
+                return 'KG';
+            },
+            kullaniciGorunenAd(kullanici) {
+                return kullanici.ad_soyad || 'Kullanici';
+            },
+            resimHTML() {
+                return '';
+            },
+            async apicagir(url, method = 'GET') {
+                apiCalls.push([url, method]);
+                return responses.shift();
+            }
+        }
+    };
+}
+
+function publicChatMessage(id) {
+    return {
+        id,
+        kullanici_id: 2,
+        ad_soyad: 'Kullanici ' + id,
+        renk: '#24467c',
+        metin: 'Mesaj ' + id,
+        tarih: '2026-06-19 10:00:00'
+    };
+}
+
+function waitForAsyncCallback() {
+    return new Promise((resolve) => {
+        setImmediate(resolve);
+    });
+}
+
 test('panel phone helpers normalize, validate, and display GSM numbers', async () => {
     const { telefonRakamlariniAl, telefonGonderimDegeri, telefonGoster } = await importPanelModule(
         'public/assets/panel/core/format.js'
@@ -263,6 +506,55 @@ test('panel dispatcher prefers private chat delete action over parent header act
     assert.deepEqual(order, ['preventDefault', 'delete-action', 'stopPropagation']);
 });
 
+test('notes reload clears mobile editor state when selected note list becomes empty', async (t) => {
+    const { createNotesFeature } = await importPanelModule('public/assets/panel/features/notes.js');
+    const { elements } = createNotesDom(t);
+    const { apiCalls, state, ctx } = createNotesContext([[notesTestNote(1)], []]);
+    const feature = createNotesFeature(ctx);
+
+    await feature.actions.notlariYukle();
+
+    assert.equal(state.aktifNot.id, 1);
+    assert.equal(elements['sayfa-notlar'].classList.contains('editor-aktif'), true);
+    assert.equal(elements['notlar-editor-icerik'].style.display, 'flex');
+
+    await feature.actions.notlariYukle();
+
+    assert.deepEqual(
+        apiCalls.map(([url, method]) => [url, method]),
+        [
+            ['/api/notlar', 'GET'],
+            ['/api/notlar', 'GET']
+        ]
+    );
+    assert.equal(state.aktifNot, null);
+    assert.deepEqual(state.notlar, []);
+    assert.equal(elements['sayfa-notlar'].classList.contains('editor-aktif'), false);
+    assert.equal(elements['notlar-bos'].style.display, 'flex');
+    assert.equal(elements['notlar-editor-icerik'].style.display, 'none');
+    assert.match(elements['notlar-liste-icerik'].innerHTML, /Henüz not yok/);
+});
+
+test('notes reload clears mobile editor state after an API error response', async (t) => {
+    const { createNotesFeature } = await importPanelModule('public/assets/panel/features/notes.js');
+    const { elements } = createNotesDom(t);
+    const { state, ctx } = createNotesContext([[notesTestNote(1)], { hata: 'Istek basarisiz. (500)' }]);
+    const feature = createNotesFeature(ctx);
+
+    await feature.actions.notlariYukle();
+
+    assert.equal(state.aktifNot.id, 1);
+    assert.equal(elements['sayfa-notlar'].classList.contains('editor-aktif'), true);
+
+    await feature.actions.notlariYukle();
+
+    assert.equal(state.aktifNot, null);
+    assert.deepEqual(state.notlar, []);
+    assert.equal(elements['sayfa-notlar'].classList.contains('editor-aktif'), false);
+    assert.equal(elements['notlar-bos'].style.display, 'flex');
+    assert.equal(elements['notlar-editor-icerik'].style.display, 'none');
+});
+
 test('panel notifications open private-message links in the matching floating chat', async (t) => {
     const format = await importPanelModule('public/assets/panel/core/format.js');
     const { createNotificationsFeature } = await importPanelModule('public/assets/panel/features/notifications.js');
@@ -391,4 +683,67 @@ test('panel notifications navigate only to safe panel links', async (t) => {
     await liste.children[2].onclick();
 
     assert.deepEqual(actionCalls, [['sayfaGoster', 'gorevler']]);
+});
+
+test('public chat keeps polling after an initial non-array response', async (t) => {
+    const { createChatFeature } = await importPanelModule('public/assets/panel/features/chat.js');
+    const { chatMessages, intervals } = createPublicChatDom(t);
+    const { apiCalls, state, ctx } = createPublicChatContext([
+        { hata: 'Istek basarisiz. (500)' },
+        [publicChatMessage(1)]
+    ]);
+    const feature = createChatFeature(ctx);
+
+    await feature.actions.chatYukle();
+
+    assert.equal(apiCalls.length, 1);
+    assert.equal(intervals.length, 1);
+    assert.equal(state.chatInterval, intervals[0]);
+    assert.equal(chatMessages.children.length, 0);
+
+    intervals[0].callback();
+    await waitForAsyncCallback();
+
+    assert.deepEqual(apiCalls, [
+        ['/api/chat', 'GET'],
+        ['/api/chat', 'GET']
+    ]);
+    assert.equal(chatMessages.children.length, 1);
+    assert.equal(state.chatLastMsgKey, '1-');
+});
+
+test('public chat preserves scroll position while rebuilding away from bottom', async (t) => {
+    const { createChatFeature } = await importPanelModule('public/assets/panel/features/chat.js');
+    const { chatMessages } = createPublicChatDom(t, {
+        childrenCount: 6,
+        clientHeight: 100,
+        scrollHeight: 500,
+        scrollTop: 120
+    });
+    const messages = Array.from({ length: 8 }, (_, index) => publicChatMessage(index + 1));
+    const { ctx } = createPublicChatContext([messages]);
+    const feature = createChatFeature(ctx);
+
+    await feature.actions.chatYukle();
+
+    assert.equal(chatMessages.children.length, 8);
+    assert.equal(chatMessages.scrollTop, 120);
+});
+
+test('public chat still scrolls to the bottom when already at bottom', async (t) => {
+    const { createChatFeature } = await importPanelModule('public/assets/panel/features/chat.js');
+    const { chatMessages } = createPublicChatDom(t, {
+        childrenCount: 6,
+        clientHeight: 100,
+        scrollHeight: 500,
+        scrollTop: 460
+    });
+    const messages = Array.from({ length: 8 }, (_, index) => publicChatMessage(index + 1));
+    const { ctx } = createPublicChatContext([messages]);
+    const feature = createChatFeature(ctx);
+
+    await feature.actions.chatYukle();
+
+    assert.equal(chatMessages.children.length, 8);
+    assert.equal(chatMessages.scrollTop, chatMessages.scrollHeight);
 });

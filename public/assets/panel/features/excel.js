@@ -168,7 +168,7 @@ export function createExcelFeature(ctx) {
 
     async function excelDisaAktar(tip, ilIds) {
         // Menüleri kapat
-        document.querySelectorAll('.indir-menu').forEach((m) => (m.style.display = 'none'));
+        document.querySelectorAll('.indir-menu').forEach((m) => m.classList.remove('aktif'));
         const guvenliTip = guvenliExcelTip(tip);
         let url = '/api/excel/disa-aktar?tip=' + encodeURIComponent(guvenliTip);
         if (ilIds && ilIds.length) url += '&il_ids=' + ilIds.map(guvenliId).filter(Boolean).join(',');
@@ -202,13 +202,15 @@ export function createExcelFeature(ctx) {
 
     function indirMenuTogla(id) {
         const menu = document.getElementById(id);
-        const aktif = menu.style.display === 'block';
-        document.querySelectorAll('.indir-menu').forEach((m) => (m.style.display = 'none'));
-        menu.style.display = aktif ? 'none' : 'block';
+        const aktif = menu.classList.contains('aktif');
+        document.querySelectorAll('.indir-menu').forEach((m) => m.classList.remove('aktif'));
+        if (!aktif) {
+            menu.classList.add('aktif');
+        }
     }
 
     async function ilSeciminiIndir() {
-        document.querySelectorAll('.indir-menu').forEach((m) => (m.style.display = 'none'));
+        document.querySelectorAll('.indir-menu').forEach((m) => m.classList.remove('aktif'));
         const iller = await apicagir('/api/iller');
         if (!Array.isArray(iller) || !iller.length) {
             toast('İl listesi alınamadı.');
@@ -275,10 +277,14 @@ export function createExcelFeature(ctx) {
         await excelDisaAktar(tip, [state.haritaSeciliIl.id]);
     }
 
+    function ilSecimModalKapat() {
+        document.getElementById('il-secim-modal')?.remove();
+    }
+
     function init() {
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.indir-wrap')) {
-                document.querySelectorAll('.indir-menu').forEach((m) => (m.style.display = 'none'));
+                document.querySelectorAll('.indir-menu').forEach((m) => m.classList.remove('aktif'));
             }
         });
     }
@@ -295,7 +301,8 @@ export function createExcelFeature(ctx) {
             ilSeciminiIndir,
             ilSecHepsi,
             ilSecimGonder,
-            tekIlIndir
+            tekIlIndir,
+            ilSecimModalKapat
         },
         init
     };

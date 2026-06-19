@@ -7,7 +7,17 @@ export function createTasksFeature(ctx) {
         const l = document.getElementById('gorev-liste');
         l.innerHTML = '';
         if (!Array.isArray(gs) || !gs.length) {
-            l.innerHTML = '<p class="bos-mesaj">Henüz görev yok.</p>';
+            l.innerHTML = `
+                <div class="empty-state-card">
+                    <div class="empty-state-icon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                            <path d="M22 7h-9V5c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-2 12H4V7h16v12z"/>
+                        </svg>
+                    </div>
+                    <h4>Henüz Görev Atanmadı</h4>
+                    <p>Sorumlu olduğunuz veya ekibinize atanan herhangi bir görev bulunmuyor.</p>
+                </div>
+            `;
             return;
         }
         const yetkili = state.kullanici.rol === 'admin' || state.kullanici.rol === 'yardimci';
@@ -86,13 +96,13 @@ export function createTasksFeature(ctx) {
                 kimden +
                 meta +
                 '</div>' +
-                '<div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">' +
+                '<div class="gorev-kart-sag">' +
                 '<span class="durum-rozet ' +
                 (tamam ? 'durum-tamam' : 'durum-bekliyor') +
                 '">' +
                 (tamam ? 'Tamamlandı' : 'Bekliyor') +
                 '</span>' +
-                '<div><button type="button" class="islem-btn" data-action-call="gorevDurum(' +
+                '<div class="gorev-aksiyonlar"><button type="button" class="islem-btn" data-action-call="gorevDurum(' +
                 gorevId +
                 ",'" +
                 (tamam ? 'bekliyor' : 'tamamlandi') +

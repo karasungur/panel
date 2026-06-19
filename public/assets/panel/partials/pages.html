@@ -56,8 +56,8 @@
                                 <h3>İl Başkanı Atanmış</h3>
                                 <div class="sayi" id="kart-dolu">-</div>
                             </div>
-                            <div class="ikon-kutu" style="background: #fff3cd">
-                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" style="fill: #856404">
+                            <div class="ikon-kutu" style="background: rgba(11, 25, 48, 0.08)">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" style="fill: var(--navy)">
                                     <path
                                         d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
                                     />
@@ -71,8 +71,13 @@
                                 <h3>İlçe Başkanı Atanmış</h3>
                                 <div class="sayi" id="kart-dolu-ilce">-</div>
                             </div>
-                            <div class="ikon-kutu" style="background: #e0e7ff">
-                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" style="fill: #3730a3">
+                            <div class="ikon-kutu" style="background: var(--secondary-container)">
+                                <svg
+                                    aria-hidden="true"
+                                    focusable="false"
+                                    viewBox="0 0 24 24"
+                                    style="fill: var(--primary)"
+                                >
                                     <path
                                         d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
                                     />
@@ -82,11 +87,30 @@
                     </div>
                 </div>
                 <div class="harita-kutu">
-                    <div id="harita-yer"><p class="bos-mesaj" id="harita-mesaj">Harita yükleniyor...</p></div>
+                    <div id="harita-yer">
+                        <p class="bos-mesaj" id="harita-mesaj">Harita yükleniyor...</p>
+                    </div>
+                    <div class="harita-zoom-araclar">
+                        <button type="button" class="zoom-btn" data-action-call="haritaZoomIn()" title="Yakınlaştır">
+                            ＋
+                        </button>
+                        <button type="button" class="zoom-btn" data-action-call="haritaZoomOut()" title="Uzaklaştır">
+                            －
+                        </button>
+                        <button type="button" class="zoom-btn" data-action-call="haritaZoomSifirla()" title="Sıfırla">
+                            ↺
+                        </button>
+                    </div>
                     <div class="harita-aciklama">
-                        <span><i class="renk-kutu" style="background: #00193c"></i> Başkan bilgisi girilmiş</span>
-                        <span><i class="renk-kutu" style="background: #6f8ec0"></i> Sorumlu olduğunuz iller</span>
-                        <span><i class="renk-kutu" style="background: #d4dae6"></i> Diğer iller</span>
+                        <span class="legend-item" data-state="dolu"
+                            ><i class="renk-kutu legend-dolu"></i> Başkan bilgisi girilmiş</span
+                        >
+                        <span class="legend-item" data-state="erisimli"
+                            ><i class="renk-kutu legend-erisimli"></i> Sorumlu olduğunuz iller</span
+                        >
+                        <span class="legend-item" data-state="diger"
+                            ><i class="renk-kutu legend-diger"></i> Diğer iller</span
+                        >
                     </div>
                 </div>
                 <!-- Harita altinda ilce paneli -->
@@ -107,24 +131,7 @@
                                         <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" /></svg
                                     >Bu İli İndir ▾
                                 </button>
-                                <div
-                                    class="indir-menu"
-                                    id="tek-il-indir-menu"
-                                    style="
-                                        display: none;
-                                        position: absolute;
-                                        top: 100%;
-                                        right: 0;
-                                        background: var(--surface);
-                                        border: 1px solid var(--outline-variant);
-                                        border-radius: 10px;
-                                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-                                        z-index: 30;
-                                        min-width: 220px;
-                                        padding: 6px;
-                                        margin-top: 4px;
-                                    "
-                                >
+                                <div class="indir-menu" id="tek-il-indir-menu">
                                     <button type="button" class="indir-secenek" data-action-call="tekIlIndir('il')">
                                         📋 Sadece il bilgileri
                                     </button>
@@ -178,24 +185,7 @@
                                         <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" /></svg
                                     >Excel İndir ▾
                                 </button>
-                                <div
-                                    class="indir-menu"
-                                    id="il-indir-menu"
-                                    style="
-                                        display: none;
-                                        position: absolute;
-                                        top: 100%;
-                                        right: 0;
-                                        background: var(--surface);
-                                        border: 1px solid var(--outline-variant);
-                                        border-radius: 10px;
-                                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-                                        z-index: 30;
-                                        min-width: 240px;
-                                        padding: 6px;
-                                        margin-top: 4px;
-                                    "
-                                >
+                                <div class="indir-menu" id="il-indir-menu">
                                     <button type="button" class="indir-secenek" data-action-call="excelDisaAktar('il')">
                                         📋 Tüm illeri indir
                                     </button>
@@ -391,103 +381,144 @@
                 <p class="sayfa-aciklama">Kendi bilgilerinizi ve şifrenizi güncelleyin.</p>
                 <div class="bolum" style="max-width: 560px">
                     <div class="bolum-baslik"><h2>Hesap Bilgileri</h2></div>
-                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px">
-                        <img
-                            alt=""
-                            class="foto-oniz"
-                            id="profil-foto-oniz"
-                            style="display: block; width: 72px; height: 72px"
-                        />
-                        <div>
-                            <label
-                                for="profil-foto-input"
-                                style="font-size: 13px; font-weight: 600; color: var(--secondary)"
-                                >Profil Fotoğrafı</label
-                            ><input
+                    <div class="profil-foto-yukle-wrap">
+                        <div class="profil-foto-cerceve">
+                            <img alt="Profil Fotoğrafı" id="profil-foto-oniz" />
+                            <button
+                                type="button"
+                                class="foto-sil-btn"
+                                id="profil-foto-sil"
+                                data-action-call="profilFotoKaldir()"
+                                title="Fotoğrafı Kaldır"
+                            >
+                                ×
+                            </button>
+                        </div>
+                        <div class="profil-foto-islem">
+                            <label for="profil-foto-input" class="btn btn-ikincil foto-sec-btn">
+                                <span>Fotoğraf Seç</span>
+                                <span class="spinner foto-spinner" id="profil-foto-spinner"></span>
+                            </label>
+                            <input
                                 type="file"
                                 id="profil-foto-input"
                                 accept="image/*"
                                 data-change-call="profilFotoSec(event)"
+                                style="display: none"
                             />
+                            <p class="foto-ipucu">En fazla 2MB, Resim dosyası</p>
                         </div>
                     </div>
                     <input type="hidden" id="profil-foto" />
-                    <label for="profil-ad-soyad" style="font-size: 13px; font-weight: 600; color: var(--secondary)"
-                        >Ad Soyad</label
-                    >
-                    <input
-                        type="text"
-                        id="profil-ad-soyad"
-                        placeholder="Ad Soyad"
-                        style="
-                            width: 100%;
-                            background: var(--surface-low);
-                            border: 1px solid var(--outline-variant);
-                            border-radius: 9px;
-                            padding: 11px;
-                            margin: 6px 0 15px;
-                            font-family: inherit;
-                        "
-                    />
-                    <label for="profil-telefon" style="font-size: 13px; font-weight: 600; color: var(--secondary)"
-                        >Telefon</label
-                    >
-                    <input
-                        type="tel"
-                        id="profil-telefon"
-                        placeholder="5xxxxxxxxx"
-                        autocomplete="tel-national"
-                        inputmode="numeric"
-                        style="
-                            width: 100%;
-                            background: var(--surface-low);
-                            border: 1px solid var(--outline-variant);
-                            border-radius: 9px;
-                            padding: 11px;
-                            margin: 6px 0 15px;
-                            font-family: inherit;
-                        "
-                    />
+
+                    <div class="form-grubu">
+                        <label for="profil-ad-soyad">Ad Soyad</label>
+                        <input
+                            type="text"
+                            id="profil-ad-soyad"
+                            class="form-kontrol"
+                            placeholder="Ad Soyad"
+                            data-input-call="hataTemizleTek(event)"
+                        />
+                        <span class="hata-metni" id="hata-profil-ad-soyad"></span>
+                    </div>
+
+                    <div class="form-grubu">
+                        <label for="profil-telefon">Telefon</label>
+                        <input
+                            type="tel"
+                            id="profil-telefon"
+                            class="form-kontrol"
+                            placeholder="5xxxxxxxxx"
+                            autocomplete="tel-national"
+                            inputmode="numeric"
+                            data-input-call="hataTemizleTek(event)"
+                        />
+                        <span class="hata-metni" id="hata-profil-telefon"></span>
+                    </div>
+
                     <button type="button" class="btn" data-action-call="profilKaydet()">Bilgileri Kaydet</button>
                 </div>
                 <div class="bolum" style="max-width: 560px">
                     <div class="bolum-baslik"><h2>Şifre Değiştir</h2></div>
-                    <label for="profil-eski-sifre" style="font-size: 13px; font-weight: 600; color: var(--secondary)"
-                        >Mevcut Şifre</label
-                    >
-                    <input
-                        type="password"
-                        id="profil-eski-sifre"
-                        placeholder="Mevcut şifreniz"
-                        autocomplete="current-password"
-                        style="
-                            width: 100%;
-                            background: var(--surface-low);
-                            border: 1px solid var(--outline-variant);
-                            border-radius: 9px;
-                            padding: 11px;
-                            margin: 6px 0 15px;
-                            font-family: inherit;
-                        "
-                    />
-                    <label for="profil-yeni-sifre" style="font-size: 13px; font-weight: 600; color: var(--secondary)"
-                        >Yeni Şifre</label
-                    >
-                    <input
-                        type="password"
-                        id="profil-yeni-sifre"
-                        placeholder="Yeni şifreniz"
-                        autocomplete="new-password"
-                        style="
-                            width: 100%;
-                            background: var(--surface-low);
-                            border: 1px solid var(--outline-variant);
-                            border-radius: 9px;
-                            padding: 11px;
-                            margin: 6px 0 15px;
-                            font-family: inherit;
-                        "
-                    />
+                    <div class="form-grubu">
+                        <label for="profil-eski-sifre">Mevcut Şifre</label>
+                        <div class="sifre-input-wrap">
+                            <input
+                                type="password"
+                                id="profil-eski-sifre"
+                                class="form-kontrol"
+                                placeholder="Mevcut şifreniz"
+                                autocomplete="current-password"
+                                data-input-call="hataTemizleTek(event)"
+                            />
+                            <button
+                                type="button"
+                                class="sifre-goz-btn"
+                                data-action-call="sifreGozToggle('profil-eski-sifre')"
+                                title="Şifreyi Göster"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path
+                                        d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                        <span class="hata-metni" id="hata-profil-eski-sifre"></span>
+                    </div>
+                    <div class="form-grubu">
+                        <label for="profil-yeni-sifre">Yeni Şifre</label>
+                        <div class="sifre-input-wrap">
+                            <input
+                                type="password"
+                                id="profil-yeni-sifre"
+                                class="form-kontrol"
+                                placeholder="Yeni şifreniz"
+                                autocomplete="new-password"
+                                data-input-call="hataTemizleTek(event)"
+                            />
+                            <button
+                                type="button"
+                                class="sifre-goz-btn"
+                                data-action-call="sifreGozToggle('profil-yeni-sifre')"
+                                title="Şifreyi Göster"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path
+                                        d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                        <span class="hata-metni" id="hata-profil-yeni-sifre"></span>
+                    </div>
+                    <div class="form-grubu">
+                        <label for="profil-yeni-sifre-tekrar">Yeni Şifre (Tekrar)</label>
+                        <div class="sifre-input-wrap">
+                            <input
+                                type="password"
+                                id="profil-yeni-sifre-tekrar"
+                                class="form-kontrol"
+                                placeholder="Yeni şifreniz (tekrar)"
+                                autocomplete="new-password"
+                                data-input-call="hataTemizleTek(event)"
+                            />
+                            <button
+                                type="button"
+                                class="sifre-goz-btn"
+                                data-action-call="sifreGozToggle('profil-yeni-sifre-tekrar')"
+                                title="Şifreyi Göster"
+                            >
+                                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                                    <path
+                                        d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"
+                                    />
+                                </svg>
+                            </button>
+                        </div>
+                        <span class="hata-metni" id="hata-profil-yeni-sifre-tekrar"></span>
+                    </div>
                     <button type="button" class="btn" data-action-call="profilSifreDegistir()">Şifreyi Değiştir</button>
                 </div>
             </div>
@@ -518,6 +549,14 @@
                         </div>
                         <div id="notlar-editor-icerik" style="display: none; flex-direction: column; flex: 1">
                             <div class="editor-baslik-bar">
+                                <button
+                                    type="button"
+                                    class="editor-arac mobil-geri-btn"
+                                    data-action-call="notGeriDon()"
+                                    title="Geri"
+                                >
+                                    ← Geri
+                                </button>
                                 <button
                                     type="button"
                                     class="editor-arac"

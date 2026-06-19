@@ -6,6 +6,36 @@ export function createMapFeature(ctx) {
     const ilceDuzenle = (...args) => actions.ilceDuzenle(...args);
     const ilKaydetTemel = (...args) => actions.ilKaydetBase(...args);
     const ilceKaydetTemel = (...args) => actions.ilceKaydetBase(...args);
+    let zoomScale = 1;
+
+    function haritaGuncelleTransform() {
+        const g = document.querySelector('#harita-yer svg #turkiye');
+        if (g) {
+            g.style.transform = `scale(${zoomScale})`;
+            g.style.transformOrigin = '50% 50%';
+            g.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        }
+    }
+
+    function haritaZoomIn() {
+        if (zoomScale < 3) {
+            zoomScale += 0.25;
+            haritaGuncelleTransform();
+        }
+    }
+
+    function haritaZoomOut() {
+        if (zoomScale > 0.75) {
+            zoomScale -= 0.25;
+            haritaGuncelleTransform();
+        }
+    }
+
+    function haritaZoomSifirla() {
+        zoomScale = 1;
+        haritaGuncelleTransform();
+    }
+
     async function haritayiYukle() {
         state.haritaVeri = await apicagir('/api/iller/harita');
         if (!Array.isArray(state.haritaVeri)) return;
@@ -46,6 +76,11 @@ export function createMapFeature(ctx) {
     function haritaBoyaVeOlayla() {
         const svg = document.querySelector('#harita-yer svg');
         if (!svg) return;
+
+        // Reset zoom
+        zoomScale = 1;
+        haritaGuncelleTransform();
+
         const pmap = {};
         state.haritaVeri.forEach((il) => (pmap[il.plaka] = il));
         const bilgi = document.getElementById('harita-bilgi');
@@ -141,6 +176,24 @@ export function createMapFeature(ctx) {
                 p.style.stroke = 'none'; // kenarlarini tamamen kaldir, iki path birlesik gorunur
             });
         });
+
+        // Legend hover interactions dynamically attached
+        document.querySelectorAll('.legend-item').forEach((item) => {
+            const stateType = item.getAttribute('data-state');
+            item.addEventListener('mouseenter', () => {
+                const hy = document.getElementById('harita-yer');
+                if (hy) {
+                    hy.classList.remove('highlight-dolu', 'highlight-erisimli', 'highlight-diger');
+                    hy.classList.add('highlight-' + stateType);
+                }
+            });
+            item.addEventListener('mouseleave', () => {
+                const hy = document.getElementById('harita-yer');
+                if (hy) {
+                    hy.classList.remove('highlight-dolu', 'highlight-erisimli', 'highlight-diger');
+                }
+            });
+        });
     }
 
     async function haritaIlceAc(il_id, il_adi) {
@@ -180,10 +233,18 @@ export function createMapFeature(ctx) {
             ilceler.forEach((ic) => {
                 const tr = document.createElement('tr');
                 const icId = guvenliId(ic.id);
+                // Dynamic Status Badge logic
+                const hasBaskan = ic.baskan_ad_soyad || ic.baskan_foto;
+                const statusBadge = hasBaskan
+                    ? '<span class="rozet durum-tamam" style="font-size:10px;padding:2px 8px;margin-left:8px">Atandı</span>'
+                    : '<span class="rozet durum-bekliyor" style="font-size:10px;padding:2px 8px;margin-left:8px">Atanmadı</span>';
+
                 tr.innerHTML =
-                    '<td><b>' +
+                    '<td><div style="display:flex;align-items:center"><b>' +
                     esc(ic.ilce_adi) +
-                    '</b></td><td>' +
+                    '</b>' +
+                    statusBadge +
+                    '</div></td><td>' +
                     baskanHucre(ic) +
                     '</td><td>' +
                     sosyalHucre(ic) +
@@ -254,6 +315,9 @@ export function createMapFeature(ctx) {
             haritaIlceKapat,
             haritaIlceDuzenle,
             haritadaIlceDuzenle,
+            haritaZoomIn,
+            haritaZoomOut,
+            haritaZoomSifirla,
             ilKaydet: ilKaydetHaritaYenileyerek,
             ilceKaydet: ilceKaydetHaritaYenileyerek
         },

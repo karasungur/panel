@@ -81,34 +81,36 @@ export function createUsersFeature(ctx) {
             const kId = guvenliId(k.id);
             let islem = '';
             if (!adminHedef || yapanAdmin) {
+                islem += '<div class="kullanici-islem-grup">';
                 if (k.rol === 'kullanici') {
                     islem +=
-                        '<button type="button" class="islem-btn" data-action-call="kullaniciDuzenle(' +
+                        '<button type="button" class="islem-btn-ikon" data-action-call="kullaniciDuzenle(' +
                         kId +
-                        ')">Düzenle</button>';
+                        ')" title="Düzenle"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>';
                     islem +=
-                        '<button type="button" class="islem-btn" data-action-call="kullaniciIllerDuzenle(' +
+                        '<button type="button" class="islem-btn-ikon" data-action-call="kullaniciIllerDuzenle(' +
                         kId +
-                        ')">İl Ata</button>';
+                        ')" title="İl Ata"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></button>';
                 } else if (k.rol === 'yardimci') {
                     islem +=
-                        '<button type="button" class="islem-btn" data-action-call="kullaniciDuzenle(' +
+                        '<button type="button" class="islem-btn-ikon" data-action-call="kullaniciDuzenle(' +
                         kId +
-                        ')">Düzenle</button>';
-                } else if (yapanAdmin) {
-                    // admin de admin'i sadece sifre/silebilir? Kendisi degilse sifre degisebilir
+                        ')" title="Düzenle"><svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>';
                 }
                 islem +=
-                    '<button type="button" class="islem-btn" data-action-call="kullaniciSifreModalAc(' +
+                    '<button type="button" class="islem-btn-ikon" data-action-call="kullaniciSifreModalAc(' +
                     kId +
-                    ')">Şifre</button>';
-                if (kId !== guvenliId(state.kullanici.id))
+                    ')" title="Şifre Değiştir"><svg viewBox="0 0 24 24"><path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg></button>';
+                if (kId !== guvenliId(state.kullanici.id)) {
                     islem +=
-                        '<button type="button" class="islem-btn sil-btn" data-action-call="kullaniciSil(' +
+                        '<button type="button" class="islem-btn-ikon sil-btn" data-action-call="kullaniciSil(' +
                         kId +
-                        ')">Sil</button>';
+                        ')" title="Sil"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg></button>';
+                }
+                islem += '</div>';
             } else {
-                islem = '<span style="color:var(--outline);font-size:12px">🔒 Yönetici hesabı</span>';
+                islem =
+                    '<span style="color:var(--outline);font-size:12px;display:flex;align-items:center;gap:4px"><svg viewBox="0 0 24 24" width="14" height="14" style="fill:var(--outline)"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/></svg> Yönetici</span>';
             }
             const sonGirisMetin = sonGorulduMetin(k.son_giris);
             const sonGirisSinif = sonGorulduSinif(k.son_giris);
@@ -191,6 +193,8 @@ export function createUsersFeature(ctx) {
     }
 
     async function kullaniciEkleModalAc() {
+        const araInput = document.getElementById('il-arama-input');
+        if (araInput) araInput.value = '';
         document.getElementById('kullanici-modal-baslik').textContent = 'Kullanıcı Ekle';
         document.getElementById('kullanici-id').value = '';
         document.getElementById('k-temel').style.display = 'block';
@@ -212,6 +216,8 @@ export function createUsersFeature(ctx) {
     }
 
     async function kullaniciDuzenle(id) {
+        const araInput = document.getElementById('il-arama-input');
+        if (araInput) araInput.value = '';
         const kId = guvenliId(id);
         const ks = await apicagir('/api/kullanicilar');
         const k = Array.isArray(ks) ? ks.find((x) => guvenliId(x.id) === kId) : null;
@@ -238,6 +244,8 @@ export function createUsersFeature(ctx) {
     }
 
     async function kullaniciIllerDuzenle(id) {
+        const araInput = document.getElementById('il-arama-input');
+        if (araInput) araInput.value = '';
         const kId = guvenliId(id);
         const ks = await apicagir('/api/kullanicilar');
         const k = Array.isArray(ks) ? ks.find((x) => guvenliId(x.id) === kId) : null;
@@ -349,6 +357,42 @@ export function createUsersFeature(ctx) {
         kullanicilariYukle();
     }
 
+    function ilAramaMetni(metin) {
+        return String(metin || '')
+            .toLocaleLowerCase('tr-TR')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/ı/g, 'i');
+    }
+
+    function kullaniciIlAra(event) {
+        const query = ilAramaMetni(event.target.value);
+        document.querySelectorAll('#il-secim-kutu .il-secim-satir').forEach((satir) => {
+            const metin = ilAramaMetni(satir.textContent);
+            if (metin.includes(query)) {
+                satir.style.display = 'flex';
+            } else {
+                satir.style.display = 'none';
+            }
+        });
+    }
+
+    function kullaniciIlHepsiniSec() {
+        document.querySelectorAll('#il-secim-kutu .il-secim-satir input[type="checkbox"]').forEach((cb) => {
+            if (cb.parentElement.style.display !== 'none') {
+                cb.checked = true;
+            }
+        });
+    }
+
+    function kullaniciIlHepsiniTemizle() {
+        document.querySelectorAll('#il-secim-kutu .il-secim-satir input[type="checkbox"]').forEach((cb) => {
+            if (cb.parentElement.style.display !== 'none') {
+                cb.checked = false;
+            }
+        });
+    }
+
     return {
         actions: {
             kullanicilariYukle,
@@ -362,6 +406,9 @@ export function createUsersFeature(ctx) {
             kullaniciSifreModalAc,
             kullaniciSifreKaydet,
             kullaniciSil,
+            kullaniciIlAra,
+            kullaniciIlHepsiniSec,
+            kullaniciIlHepsiniTemizle,
             ilSecimModalKapat() {
                 document.getElementById('il-secim-modal')?.remove();
             }

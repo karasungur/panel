@@ -4,7 +4,16 @@ const { tokenDogrula, adminVeyaYardimci } = require('../middleware/auth');
 const router = express.Router();
 
 router.get('/', tokenDogrula, (req, res) => {
-    const mesajlar = db.prepare('SELECT * FROM mesajlar ORDER BY id DESC LIMIT 200').all();
+    const mesajlar = db
+        .prepare(
+            `
+        SELECT m.*, k.profil_foto 
+        FROM mesajlar m
+        LEFT JOIN kullanicilar k ON m.kullanici_id = k.id
+        ORDER BY m.id DESC LIMIT 200
+    `
+        )
+        .all();
     res.json(mesajlar.reverse());
 });
 
