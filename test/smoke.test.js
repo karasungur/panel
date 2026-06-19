@@ -11,7 +11,7 @@ const REQUIRED_ENV_KEYS = [
     'TRUST_PROXY',
     'DATA_DIR',
     'BACKUP_DIR',
-    'ADMIN_KULLANICI_ADI',
+    'ADMIN_TELEFON',
     'ADMIN_SIFRE',
     'JWT_SECRET'
 ];
@@ -52,7 +52,7 @@ test('GET /api returns API status', async (t) => {
         TRUST_PROXY: process.env.TRUST_PROXY,
         DATA_DIR: process.env.DATA_DIR,
         BACKUP_DIR: process.env.BACKUP_DIR,
-        ADMIN_KULLANICI_ADI: process.env.ADMIN_KULLANICI_ADI,
+        ADMIN_TELEFON: process.env.ADMIN_TELEFON,
         ADMIN_SIFRE: process.env.ADMIN_SIFRE,
         JWT_SECRET: process.env.JWT_SECRET
     };
@@ -63,7 +63,7 @@ test('GET /api returns API status', async (t) => {
     process.env.TRUST_PROXY = '1';
     process.env.DATA_DIR = tmpDir;
     process.env.BACKUP_DIR = path.join(tmpDir, 'backups');
-    process.env.ADMIN_KULLANICI_ADI = 'smoke-admin';
+    process.env.ADMIN_TELEFON = '+905559000000';
     process.env.ADMIN_SIFRE = 'smoke-admin-password';
     process.env.JWT_SECRET = 'm8Qw2zRt5Yp1Lc9Nv4Xa7Hb3Kf6Ds0Ge';
 

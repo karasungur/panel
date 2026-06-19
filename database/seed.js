@@ -3,31 +3,35 @@ const bcrypt = require('bcryptjs');
 const db = require('./db');
 const illerListesi = require('./iller-listesi');
 const { jwtSecretHatasi, parolaHatasi } = require('../utils/security');
+const { telefonNormalizeEt } = require('../utils/phone');
 
-const adminKullaniciAdi = process.env.ADMIN_KULLANICI_ADI || 'admin';
+const adminTelefon = telefonNormalizeEt(process.env.ADMIN_TELEFON);
 const adminSifre = process.env.ADMIN_SIFRE || 'admin123';
 const prod = process.env.NODE_ENV === 'production';
-if (prod && (!process.env.ADMIN_KULLANICI_ADI || !process.env.ADMIN_SIFRE || !process.env.JWT_SECRET)) {
-    throw new Error('Production icin ADMIN_KULLANICI_ADI, ADMIN_SIFRE ve JWT_SECRET zorunludur.');
+if (!adminTelefon) {
+    throw new Error('ADMIN_TELEFON zorunludur ve +905xxxxxxxxx formatinda gecerli bir GSM numarasi olmalidir.');
+}
+if (prod && (!process.env.ADMIN_TELEFON || !process.env.ADMIN_SIFRE || !process.env.JWT_SECRET)) {
+    throw new Error('Production icin ADMIN_TELEFON, ADMIN_SIFRE ve JWT_SECRET zorunludur.');
 }
 
 if (prod) {
-    const adminParolaHatasi = parolaHatasi(adminSifre, { admin: true, kullaniciAdi: adminKullaniciAdi });
+    const adminParolaHatasi = parolaHatasi(adminSifre, { admin: true, kimlik: adminTelefon });
     if (adminParolaHatasi) throw new Error(`ADMIN_SIFRE gecersiz: ${adminParolaHatasi}`);
     const jwtHatasi = jwtSecretHatasi(process.env.JWT_SECRET);
     if (jwtHatasi) throw new Error(`JWT_SECRET gecersiz: ${jwtHatasi}`);
 }
 
-const mevcutAdmin = db.prepare('SELECT id FROM kullanicilar WHERE kullanici_adi = ?').get(adminKullaniciAdi);
+const mevcutAdmin = db.prepare('SELECT id FROM kullanicilar WHERE telefon = ?').get(adminTelefon);
 if (mevcutAdmin) {
-    console.log(`"${adminKullaniciAdi}" kullanicisi zaten var, tekrar olusturulmadi.`);
+    console.log(`"${adminTelefon}" telefonu ile admin kullanici zaten var, tekrar olusturulmadi.`);
 } else {
     const hash = bcrypt.hashSync(adminSifre, 10);
     db.prepare(
-        "INSERT INTO kullanicilar (kullanici_adi, sifre, rol, ad_soyad, gorev_adi, renk) VALUES (?, ?, 'admin', ?, ?, ?)"
-    ).run(adminKullaniciAdi, hash, 'Sistem Yoneticisi', 'Genel Baskan', '#c1121f');
+        "INSERT INTO kullanicilar (telefon, sifre, rol, ad_soyad, gorev_adi, renk) VALUES (?, ?, 'admin', ?, ?, ?)"
+    ).run(adminTelefon, hash, 'Sistem Yoneticisi', 'Genel Baskan', '#c1121f');
     console.log('Admin kullanici olusturuldu:');
-    console.log('  Kullanici adi : ' + adminKullaniciAdi);
+    console.log('  Telefon       : ' + adminTelefon);
     if (!prod) console.log('  Sifre         : ' + adminSifre);
 }
 

@@ -3,6 +3,7 @@ require('dotenv').config();
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { telefonNormalizeEt } = require('../utils/phone');
 
 const ROOT = path.resolve(__dirname, '..');
 const MIN_NODE = '22.13.0';
@@ -14,13 +15,13 @@ const DOCUMENTED_ENV_KEYS = [
     'DATA_DIR',
     'BACKUP_DIR',
     'BACKUP_RETENTION_DAYS',
-    'ADMIN_KULLANICI_ADI',
+    'ADMIN_TELEFON',
     'ADMIN_SIFRE',
     'JWT_SECRET',
     'AUTH_COOKIE_SECURE',
     'AUTH_COOKIE_SAMESITE'
 ];
-const PRODUCTION_REQUIRED = ['PORT', 'DATA_DIR', 'BACKUP_DIR', 'ADMIN_KULLANICI_ADI', 'ADMIN_SIFRE', 'JWT_SECRET'];
+const PRODUCTION_REQUIRED = ['PORT', 'DATA_DIR', 'BACKUP_DIR', 'ADMIN_TELEFON', 'ADMIN_SIFRE', 'JWT_SECRET'];
 const MIN_ADMIN_PASSWORD_LENGTH = 12;
 const MIN_JWT_SECRET_LENGTH = 32;
 const PLACEHOLDER_PATTERN =
@@ -91,8 +92,14 @@ function isPlaceholder(value) {
 
 function checkProductionAdminPassword() {
     const password = envValue('ADMIN_SIFRE');
-    const username = envValue('ADMIN_KULLANICI_ADI').toLowerCase();
+    const adminPhone = envValue('ADMIN_TELEFON');
+    const adminPhoneDigits = adminPhone.replace(/\D/g, '');
     const normalizedPassword = password.toLowerCase();
+    const normalizedPasswordDigits = normalizedPassword.replace(/\D/g, '');
+
+    if (!telefonNormalizeEt(adminPhone)) {
+        errors.push('Production icin ADMIN_TELEFON +905xxxxxxxxx formatinda gecerli bir GSM numarasi olmalidir.');
+    }
 
     if (isPlaceholder(password) || UNSAFE_ADMIN_PASSWORDS.has(normalizedPassword)) {
         errors.push('Production icin ADMIN_SIFRE placeholder/default olmayan guclu bir deger olmalidir.');
@@ -102,8 +109,8 @@ function checkProductionAdminPassword() {
         errors.push(`Production icin ADMIN_SIFRE en az ${MIN_ADMIN_PASSWORD_LENGTH} karakter olmalidir.`);
     }
 
-    if (username && normalizedPassword === username) {
-        errors.push('Production icin ADMIN_SIFRE kullanici adi ile ayni olamaz.');
+    if (adminPhoneDigits && normalizedPasswordDigits === adminPhoneDigits) {
+        errors.push('Production icin ADMIN_SIFRE telefon numarasi ile ayni olamaz.');
     }
 }
 

@@ -27,7 +27,7 @@ async function startTestServer(t, envOverrides = {}) {
         TRUST_PROXY: process.env.TRUST_PROXY,
         DATA_DIR: process.env.DATA_DIR,
         BACKUP_DIR: process.env.BACKUP_DIR,
-        ADMIN_KULLANICI_ADI: process.env.ADMIN_KULLANICI_ADI,
+        ADMIN_TELEFON: process.env.ADMIN_TELEFON,
         ADMIN_SIFRE: process.env.ADMIN_SIFRE,
         JWT_SECRET: process.env.JWT_SECRET,
         AUTH_COOKIE_SECURE: process.env.AUTH_COOKIE_SECURE,
@@ -45,7 +45,7 @@ async function startTestServer(t, envOverrides = {}) {
     process.env.TRUST_PROXY = '1';
     process.env.DATA_DIR = path.join(tmpDir, 'data');
     process.env.BACKUP_DIR = path.join(tmpDir, 'backups');
-    process.env.ADMIN_KULLANICI_ADI = 'security-admin';
+    process.env.ADMIN_TELEFON = '+905551000000';
     process.env.ADMIN_SIFRE = 'security-admin-password';
     process.env.JWT_SECRET = 'k9Vn4pQ7rT2xM8bL5cZ1aH6dF3wY0uS8';
     process.env.AUTH_COOKIE_SECURE = 'false';
@@ -100,12 +100,12 @@ async function startTestServer(t, envOverrides = {}) {
     const { port } = server.address();
     return {
         baseUrl: `http://127.0.0.1:${port}`,
-        async login(password = process.env.ADMIN_SIFRE, kullaniciAdi = process.env.ADMIN_KULLANICI_ADI) {
+        async login(password = process.env.ADMIN_SIFRE, telefon = process.env.ADMIN_TELEFON) {
             const response = await fetch(`http://127.0.0.1:${port}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    kullanici_adi: kullaniciAdi,
+                    telefon,
                     sifre: password
                 })
             });
@@ -128,22 +128,22 @@ function cookieHeaders(session, extra = {}) {
     return { Cookie: session.cookie, ...extra };
 }
 
-function testKullanicisiOlustur(kullaniciAdi, sifre, rol = 'kullanici') {
+function testKullanicisiOlustur(telefon, sifre, rol = 'kullanici', adSoyad = telefon) {
     const db = require('../database/db');
-    db.prepare('INSERT INTO kullanicilar (kullanici_adi, sifre, rol, ad_soyad) VALUES (?, ?, ?, ?)').run(
-        kullaniciAdi,
+    db.prepare('INSERT INTO kullanicilar (telefon, sifre, rol, ad_soyad) VALUES (?, ?, ?, ?)').run(
+        telefon,
         bcrypt.hashSync(sifre, 10),
         rol,
-        kullaniciAdi
+        adSoyad
     );
-    return db.prepare('SELECT * FROM kullanicilar WHERE kullanici_adi = ?').get(kullaniciAdi);
+    return db.prepare('SELECT * FROM kullanicilar WHERE telefon = ?').get(telefon);
 }
 
 function bearerTokenOlustur(kullanici) {
     return jwt.sign(
         {
             id: kullanici.id,
-            kullanici_adi: kullanici.kullanici_adi,
+            telefon: kullanici.telefon,
             rol: kullanici.rol,
             tokenVersion: Number(kullanici.token_version) || 0
         },
@@ -219,7 +219,7 @@ test('auth cors supports credentialed allowed origins', async (t) => {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            kullanici_adi: process.env.ADMIN_KULLANICI_ADI,
+            telefon: process.env.ADMIN_TELEFON,
             sifre: process.env.ADMIN_SIFRE
         })
     });
@@ -237,7 +237,7 @@ test('auth cors supports credentialed allowed origins', async (t) => {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            kullanici_adi: process.env.ADMIN_KULLANICI_ADI,
+            telefon: process.env.ADMIN_TELEFON,
             sifre: process.env.ADMIN_SIFRE
         })
     });
@@ -249,9 +249,9 @@ test('auth cors supports credentialed allowed origins', async (t) => {
 
 test('authorization bearer takes precedence over cookie tokens', async (t) => {
     const ctx = await startTestServer(t);
-    const cookieUser = testKullanicisiOlustur('cookie-user', 'cookie-user-password');
-    const bearerUser = testKullanicisiOlustur('bearer-user', 'bearer-user-password');
-    const cookieSession = await ctx.login('cookie-user-password', 'cookie-user');
+    const cookieUser = testKullanicisiOlustur('+905551000001', 'cookie-user-password', 'kullanici', 'Cookie User');
+    const bearerUser = testKullanicisiOlustur('+905551000002', 'bearer-user-password', 'kullanici', 'Bearer User');
+    const cookieSession = await ctx.login('cookie-user-password', '+905551000001');
     const bearerToken = bearerTokenOlustur(bearerUser);
 
     const cookieOnly = await fetch(`${ctx.baseUrl}/api/auth/me`, {
@@ -303,7 +303,7 @@ test('security integration flows', async (t) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            kullanici_adi: process.env.ADMIN_KULLANICI_ADI,
+            telefon: '05551000000',
             sifre: process.env.ADMIN_SIFRE,
             ozel_anahtar: 'ignored-legacy-value'
         })
@@ -323,12 +323,22 @@ test('security integration flows', async (t) => {
     });
     assert.equal(spoofed.status, 400);
 
-    const birinciKullanici = testKullanicisiOlustur('upload-user-1', 'upload-user-password-1');
-    const ikinciKullanici = testKullanicisiOlustur('upload-user-2', 'upload-user-password-2');
-    testKullanicisiOlustur('upload-user-3', 'upload-user-password-3');
-    const birinciSession = await ctx.login('upload-user-password-1', 'upload-user-1');
-    const ikinciSession = await ctx.login('upload-user-password-2', 'upload-user-2');
-    const ucuncuSession = await ctx.login('upload-user-password-3', 'upload-user-3');
+    const birinciKullanici = testKullanicisiOlustur(
+        '+905551000011',
+        'upload-user-password-1',
+        'kullanici',
+        'Upload User 1'
+    );
+    const ikinciKullanici = testKullanicisiOlustur(
+        '+905551000012',
+        'upload-user-password-2',
+        'kullanici',
+        'Upload User 2'
+    );
+    testKullanicisiOlustur('+905551000013', 'upload-user-password-3', 'kullanici', 'Upload User 3');
+    const birinciSession = await ctx.login('upload-user-password-1', '+905551000011');
+    const ikinciSession = await ctx.login('upload-user-password-2', '+905551000012');
+    const ucuncuSession = await ctx.login('upload-user-password-3', '+905551000013');
 
     const upload = await pngYukle(ctx.baseUrl, birinciSession);
     assert.equal(upload.status, 200);
@@ -350,18 +360,18 @@ test('security integration flows', async (t) => {
         }
     );
 
-    const staleAttemptKey = 'stale-ip:stale-user';
+    const staleAttemptKey = 'stale-ip:+905559990099';
     db.prepare(
         `
-        INSERT INTO login_attempts (anahtar, ip, kullanici_adi, sayi, ilk_deneme_ms, kilitli_kadar_ms)
-        VALUES (?, '203.0.113.10', 'stale-user', 1, ?, 0)
+        INSERT INTO login_attempts (anahtar, ip, telefon, sayi, ilk_deneme_ms, kilitli_kadar_ms)
+        VALUES (?, '203.0.113.10', '+905559990099', 1, ?, 0)
     `
     ).run(staleAttemptKey, Date.now() - 31 * 60 * 1000);
     for (let i = 0; i < 3; i++) {
         const failedLogin = await fetch(`${ctx.baseUrl}/api/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ kullanici_adi: `missing-login-${i}`, sifre: 'wrong-password' })
+            body: JSON.stringify({ telefon: `+90555999000${i}`, sifre: 'wrong-password' })
         });
         assert.equal(failedLogin.status, 401);
     }
@@ -369,13 +379,10 @@ test('security integration flows', async (t) => {
     const cappedLogin = await fetch(`${ctx.baseUrl}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ kullanici_adi: 'missing-login-3', sifre: 'wrong-password' })
+        body: JSON.stringify({ telefon: '+905559990003', sifre: 'wrong-password' })
     });
     assert.equal(cappedLogin.status, 429);
-    assert.equal(
-        db.prepare("SELECT COUNT(*) s FROM login_attempts WHERE kullanici_adi LIKE 'missing-login-%'").get().s,
-        3
-    );
+    assert.equal(db.prepare("SELECT COUNT(*) s FROM login_attempts WHERE telefon LIKE '+90555999000%'").get().s, 3);
 
     const ownUpload = await fetch(`${ctx.baseUrl}${uploadBody.url}`, {
         headers: cookieHeaders(birinciSession)
@@ -447,9 +454,7 @@ test('security integration flows', async (t) => {
     });
     assert.equal(legacyProfilUpload.status, 200);
 
-    const adminKullanici = db
-        .prepare('SELECT * FROM kullanicilar WHERE kullanici_adi = ?')
-        .get(process.env.ADMIN_KULLANICI_ADI);
+    const adminKullanici = db.prepare('SELECT * FROM kullanicilar WHERE telefon = ?').get(process.env.ADMIN_TELEFON);
     const queryTokenUpload = await fetch(
         `${ctx.baseUrl}${uploadBody.url}?token=${encodeURIComponent(bearerTokenOlustur(adminKullanici))}`
     );
@@ -613,7 +618,7 @@ test('security integration flows', async (t) => {
         method: 'POST',
         headers: cookieHeaders(adminSession, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
-            kullanici_adi: 'weak-password-user',
+            telefon: '+905551000020',
             sifre: 'admin123'
         })
     });
@@ -623,7 +628,7 @@ test('security integration flows', async (t) => {
         method: 'POST',
         headers: cookieHeaders(adminSession, { 'Content-Type': 'application/json' }),
         body: JSON.stringify({
-            kullanici_adi: 'route-user',
+            telefon: '+905551000021',
             sifre: 'route-user-password-123',
             ad_soyad: 'Route User',
             il_idleri: []
@@ -690,7 +695,7 @@ test('security integration flows', async (t) => {
         1
     );
 
-    const routeUserSession = await ctx.login('route-user-password-123', 'route-user');
+    const routeUserSession = await ctx.login('route-user-password-123', '+905551000021');
 
     const firstMessage = await fetch(`${ctx.baseUrl}/api/ozel-mesaj`, {
         method: 'POST',
@@ -780,6 +785,22 @@ test('security integration flows', async (t) => {
     for (let i = 1; i < historyBody.length; i++) {
         assert.ok(historyBody[i - 1].id < historyBody[i].id);
     }
+
+    const phoneUpdate = await fetch(`${ctx.baseUrl}/api/kullanicilar/profil/guncelle`, {
+        method: 'PUT',
+        headers: cookieHeaders(routeUserSession, { 'Content-Type': 'application/json' }),
+        body: JSON.stringify({
+            telefon: '05551000022',
+            ad_soyad: 'Route User'
+        })
+    });
+    assert.equal(phoneUpdate.status, 200);
+    assert.equal((await phoneUpdate.json()).tekrar_giris_gerekli, true);
+    const oldRouteSessionMe = await fetch(`${ctx.baseUrl}/api/auth/me`, {
+        headers: cookieHeaders(routeUserSession)
+    });
+    assert.equal(oldRouteSessionMe.status, 401);
+    await ctx.login('route-user-password-123', '+905551000022');
 
     const update = await fetch(`${ctx.baseUrl}/api/kullanicilar/profil/sifre`, {
         method: 'PUT',

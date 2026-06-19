@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 
 CREATE TABLE IF NOT EXISTS kullanicilar (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    kullanici_adi TEXT UNIQUE NOT NULL,
+    telefon TEXT UNIQUE NOT NULL,
     sifre TEXT NOT NULL,
     rol TEXT NOT NULL CHECK(rol IN ('admin', 'yardimci', 'kullanici')) DEFAULT 'kullanici',
     ad_soyad TEXT,
@@ -95,7 +95,7 @@ CREATE INDEX IF NOT EXISTS idx_bildirimler_kid ON bildirimler(kullanici_id, okun
 CREATE TABLE IF NOT EXISTS mesajlar (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     kullanici_id INTEGER,
-    kullanici_adi TEXT,
+    telefon TEXT,
     ad_soyad TEXT,
     renk TEXT,
     metin TEXT NOT NULL,
@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS uploads (
 CREATE TABLE IF NOT EXISTS login_attempts (
     anahtar TEXT PRIMARY KEY,
     ip TEXT NOT NULL,
-    kullanici_adi TEXT NOT NULL,
+    telefon TEXT NOT NULL,
     sayi INTEGER NOT NULL DEFAULT 0 CHECK(sayi >= 0),
     ilk_deneme_ms INTEGER NOT NULL,
     kilitli_kadar_ms INTEGER NOT NULL DEFAULT 0,

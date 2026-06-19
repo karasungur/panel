@@ -2798,11 +2798,13 @@
                                 font-family: inherit;
                             "
                         />
-                        <label style="font-size: 13px; font-weight: 600; color: var(--secondary)">Kullanıcı Adı</label>
+                        <label style="font-size: 13px; font-weight: 600; color: var(--secondary)">Telefon</label>
                         <input
-                            type="text"
-                            id="profil-kullanici-adi"
-                            placeholder="Kullanıcı adı"
+                            type="tel"
+                            id="profil-telefon"
+                            placeholder="5xxxxxxxxx"
+                            autocomplete="tel-national"
+                            inputmode="numeric"
                             style="
                                 width: 100%;
                                 background: var(--surface-low);
@@ -3079,8 +3081,14 @@
                 <input type="hidden" id="kullanici-id" />
                 <div id="k-temel">
                     <label>Ad Soyad</label><input type="text" id="yeni-ad-soyad" placeholder="Ad Soyad" />
-                    <label>Kullanıcı Adı *</label
-                    ><input type="text" id="yeni-kullanici-adi" placeholder="Kullanıcı adı" autocomplete="off" />
+                    <label>Telefon *</label
+                    ><input
+                        type="tel"
+                        id="yeni-telefon"
+                        placeholder="5xxxxxxxxx"
+                        autocomplete="tel-national"
+                        inputmode="numeric"
+                    />
                     <label id="sifre-label">Şifre *</label
                     ><input
                         type="password"
@@ -3438,9 +3446,33 @@
                     .join('')
                     .toUpperCase();
             }
+            function telefonRakamlariniAl(deger) {
+                let rakam = metin(deger).replace(/\D/g, '');
+                if (rakam.startsWith('90') && rakam.length === 12) rakam = rakam.slice(2);
+                else if (rakam.startsWith('0') && rakam.length === 11) rakam = rakam.slice(1);
+                return rakam.slice(0, 10);
+            }
+            function telefonGecerliMi(deger) {
+                return /^5\d{9}$/.test(telefonRakamlariniAl(deger));
+            }
+            function telefonGonderimDegeri(deger) {
+                const rakam = telefonRakamlariniAl(deger);
+                return /^5\d{9}$/.test(rakam) ? '+90' + rakam : '';
+            }
+            function telefonGoster(deger) {
+                const rakam = telefonRakamlariniAl(deger);
+                if (!/^5\d{9}$/.test(rakam)) return '';
+                return (
+                    '0' + rakam.slice(0, 3) + '-' + rakam.slice(3, 6) + '-' + rakam.slice(6, 8) + '-' + rakam.slice(8)
+                );
+            }
+            function kullaniciGorunenAd(k, varsayilan = 'Kullanıcı') {
+                if (!k || typeof k !== 'object') return varsayilan;
+                return metin(k.ad_soyad) || telefonGoster(k.telefon) || varsayilan;
+            }
 
             function profilBilgileriGoster() {
-                document.getElementById('tb-ad').textContent = kullanici.ad_soyad || kullanici.kullanici_adi;
+                document.getElementById('tb-ad').textContent = kullaniciGorunenAd(kullanici);
                 document.getElementById('tb-gorev').textContent =
                     kullanici.rol === 'admin'
                         ? 'Tanıtım ve Medya Başkanı'
@@ -3454,7 +3486,7 @@
                 );
                 if (foto) {
                     av.innerHTML = foto;
-                } else av.textContent = basHarfleri(kullanici.ad_soyad || kullanici.kullanici_adi);
+                } else av.textContent = basHarfleri(kullaniciGorunenAd(kullanici));
             }
             profilBilgileriGoster();
 
@@ -3934,6 +3966,8 @@
                             esc(k.gorev_adi || 'Kullanıcı') +
                             '</span>';
 
+                    const gorunenAd = kullaniciGorunenAd(k);
+                    const telefonMetni = telefonGoster(k.telefon);
                     let avatar =
                         resimHTML(k.profil_foto, 'baskan-foto', 'border-radius:99px') ||
                         '<div class="avatar" style="width:38px;height:38px;background:' +
@@ -3941,7 +3975,7 @@
                             '22;color:' +
                             renk +
                             '">' +
-                            esc(basHarfleri(k.ad_soyad || k.kullanici_adi)) +
+                            esc(basHarfleri(gorunenAd)) +
                             '</div>';
 
                     // Yardimci ya da kullanici, hedef admin DEGILSE etkilesim acik;
@@ -3985,9 +4019,9 @@
                         '<td><div class="baskan-hucre">' +
                         avatar +
                         '<div class="baskan-bilgi"><b>' +
-                        esc(k.ad_soyad || k.kullanici_adi) +
-                        '</b><br>@' +
-                        esc(k.kullanici_adi) +
+                        esc(gorunenAd) +
+                        '</b><br>' +
+                        esc(telefonMetni) +
                         '</div></div></td>' +
                         '<td>' +
                         gorevRozet +
@@ -4055,7 +4089,7 @@
                 document.getElementById('kullanici-id').value = '';
                 document.getElementById('k-temel').style.display = 'block';
                 document.getElementById('sifre-label').textContent = 'Şifre *';
-                ['yeni-ad-soyad', 'yeni-kullanici-adi', 'yeni-sifre', 'yeni-gorev'].forEach(
+                ['yeni-ad-soyad', 'yeni-telefon', 'yeni-sifre', 'yeni-gorev'].forEach(
                     (i) => (document.getElementById(i).value = '')
                 );
                 // Rol secimi (sadece admin gorebilir)
@@ -4080,7 +4114,7 @@
                 document.getElementById('k-temel').style.display = 'block';
                 document.getElementById('sifre-label').textContent = 'Yeni Şifre (boş = değişmez)';
                 document.getElementById('yeni-ad-soyad').value = k.ad_soyad || '';
-                document.getElementById('yeni-kullanici-adi').value = k.kullanici_adi;
+                document.getElementById('yeni-telefon').value = telefonRakamlariniAl(k.telefon);
                 document.getElementById('yeni-sifre').value = '';
                 document.getElementById('yeni-gorev').value = k.gorev_adi || '';
                 // Rol secimi sadece admin'de gorunur, ve sadece admin OLMAYAN kullanicilarda
@@ -4100,8 +4134,7 @@
                 const ks = await apicagir('/api/kullanicilar');
                 const k = Array.isArray(ks) ? ks.find((x) => guvenliId(x.id) === kId) : null;
                 if (!k) return;
-                document.getElementById('kullanici-modal-baslik').textContent =
-                    (k.ad_soyad || k.kullanici_adi) + ' — İl Ata';
+                document.getElementById('kullanici-modal-baslik').textContent = kullaniciGorunenAd(k) + ' — İl Ata';
                 document.getElementById('kullanici-id').value = kId;
                 document.getElementById('k-temel').style.display = 'none';
                 await ilSecimDoldur((k.iller || []).map((i) => i.id));
@@ -4117,10 +4150,14 @@
                     if (temelGorunur) {
                         const body = {
                             ad_soyad: val('yeni-ad-soyad'),
-                            kullanici_adi: val('yeni-kullanici-adi'),
+                            telefon: telefonGonderimDegeri(val('yeni-telefon')),
                             gorev_adi: val('yeni-gorev'),
                             renk: secilenRenk
                         };
+                        if (!body.telefon) {
+                            toast('Geçerli telefon numarası girin.');
+                            return;
+                        }
                         if (seciliRol) body.rol = seciliRol;
                         const s = await apicagir('/api/kullanicilar/' + id, 'PUT', body);
                         if (s.hata) {
@@ -4146,15 +4183,15 @@
                 } else {
                     const body = {
                         ad_soyad: val('yeni-ad-soyad'),
-                        kullanici_adi: val('yeni-kullanici-adi'),
+                        telefon: telefonGonderimDegeri(val('yeni-telefon')),
                         sifre: val('yeni-sifre'),
                         gorev_adi: val('yeni-gorev'),
                         renk: secilenRenk,
                         il_idleri
                     };
                     if (seciliRol) body.rol = seciliRol;
-                    if (!body.kullanici_adi || !body.sifre) {
-                        toast('Kullanıcı adı ve şifre gereklidir.');
+                    if (!body.telefon || !body.sifre) {
+                        toast('Geçerli telefon numarası ve şifre gereklidir.');
                         return;
                     }
                     const s = await apicagir('/api/kullanicilar', 'POST', body);
@@ -4201,7 +4238,7 @@
             }
             function profilSayfasiDoldur() {
                 document.getElementById('profil-ad-soyad').value = kullanici.ad_soyad || '';
-                document.getElementById('profil-kullanici-adi').value = kullanici.kullanici_adi || '';
+                document.getElementById('profil-telefon').value = telefonRakamlariniAl(kullanici.telefon);
                 document.getElementById('profil-foto').value = kullanici.profil_foto || '';
                 const o = document.getElementById('profil-foto-oniz');
                 resimKaynakAta(o, kullanici.profil_foto);
@@ -4225,18 +4262,27 @@
             async function profilKaydet() {
                 const body = {
                     ad_soyad: val('profil-ad-soyad'),
-                    kullanici_adi: val('profil-kullanici-adi'),
+                    telefon: telefonGonderimDegeri(val('profil-telefon')),
                     profil_foto: val('profil-foto')
                 };
+                if (!body.telefon) {
+                    toast('Geçerli telefon numarası girin.');
+                    return;
+                }
                 const s = await apicagir('/api/kullanicilar/profil/guncelle', 'PUT', body);
                 if (s.hata) {
                     toast(s.hata);
                     return;
                 }
                 kullanici.ad_soyad = body.ad_soyad;
-                kullanici.kullanici_adi = body.kullanici_adi;
+                kullanici.telefon = body.telefon;
                 kullanici.profil_foto = body.profil_foto;
                 localStorage.setItem('kullanici', JSON.stringify(kullanici));
+                if (s.tekrar_giris_gerekli) {
+                    toast('Telefonunuz güncellendi. Lütfen tekrar giriş yapın.');
+                    setTimeout(loginSayfasinaGit, 900);
+                    return;
+                }
                 profilBilgileriGoster();
                 toast('Profiliniz güncellendi.');
             }
@@ -4284,14 +4330,12 @@
 
                     // Kime atandı (yetkili görüyor)
                     let kime =
-                        yetkili && g.kullanici_adi
-                            ? '<div class="kime">→ ' + esc(g.ad_soyad || g.kullanici_adi) + '</div>'
-                            : '';
+                        yetkili && g.telefon ? '<div class="kime">→ ' + esc(kullaniciGorunenAd(g)) + '</div>' : '';
                     // Kim atadı (kullanıcı görüyor)
                     let kimden =
-                        !yetkili && g.olusturan_adi
+                        !yetkili && (g.olusturan_ad_soyad || g.olusturan_telefon)
                             ? '<div class="gorev-olusturan">↗ ' +
-                              esc(g.olusturan_ad_soyad || g.olusturan_adi) +
+                              esc(g.olusturan_ad_soyad || telefonGoster(g.olusturan_telefon)) +
                               ' tarafından atandı</div>'
                             : '';
 
@@ -4373,7 +4417,7 @@
                     .forEach((k) => {
                         const o = document.createElement('option');
                         o.value = guvenliId(k.id);
-                        o.textContent = k.ad_soyad || k.kullanici_adi;
+                        o.textContent = kullaniciGorunenAd(k);
                         sel.appendChild(o);
                     });
                 document.getElementById('gorev-baslik').value = '';
@@ -4451,7 +4495,7 @@
                             '22;color:' +
                             renk +
                             '">' +
-                            esc(basHarfleri(m.ad_soyad || m.kullanici_adi)) +
+                            esc(basHarfleri(kullaniciGorunenAd(m))) +
                             '</div>';
                         const t = new Date((m.tarih || '').replace(' ', 'T') + 'Z').toLocaleTimeString('tr-TR', {
                             hour: '2-digit',
@@ -4462,7 +4506,7 @@
                             '<div class="balon"><div class="gonderen" style="color:' +
                             renk +
                             '">' +
-                            esc(m.ad_soyad || m.kullanici_adi) +
+                            esc(kullaniciGorunenAd(m)) +
                             '</div><div class="metin">' +
                             esc(m.metin) +
                             '</div><div class="zaman">' +
@@ -5033,7 +5077,8 @@
                     kisiler = kisiler.filter(
                         (k) =>
                             (k.ad_soyad || '').toLowerCase().includes(arama) ||
-                            (k.kullanici_adi || '').toLowerCase().includes(arama)
+                            telefonGoster(k.telefon).toLowerCase().includes(arama) ||
+                            (k.telefon || '').toLowerCase().includes(arama)
                     );
                 }
                 if (!kisiler.length) {
@@ -5054,7 +5099,7 @@
                             '22;color:' +
                             renk +
                             '">' +
-                            esc(basHarfleri(k.ad_soyad || k.kullanici_adi)) +
+                            esc(basHarfleri(kullaniciGorunenAd(k))) +
                             '</div>';
                     const onlineNokta = onlineSinif === 'online' ? '<span class="online-nokta"></span>' : '';
                     const sonMesaj = metin(k.son_mesaj);
@@ -5071,7 +5116,7 @@
                         onlineNokta +
                         '</div>' +
                         '<div class="kisi-bilgi"><div class="kisi-ad">' +
-                        esc(k.ad_soyad || k.kullanici_adi) +
+                        esc(kullaniciGorunenAd(k)) +
                         '</div>' +
                         '<div class="kisi-durum ' +
                         esc(durumSinif) +
@@ -5080,7 +5125,7 @@
                         '</div></div>' +
                         rozet;
                     d.onclick = () => {
-                        sohbetAc(kisiId, k.ad_soyad || k.kullanici_adi, renk, k.son_giris);
+                        sohbetAc(kisiId, kullaniciGorunenAd(k), renk, k.son_giris);
                         chatAciciKapat();
                     };
                     liste.appendChild(d);

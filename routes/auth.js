@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../database/db');
 const { JWT_SECRET, tokenDogrula, AUTH_COOKIE_NAME } = require('../middleware/auth');
+const { telefonNormalizeEt } = require('../utils/phone');
 const router = express.Router();
 
 // ============ BRUTE FORCE KORUMASI ============
@@ -16,7 +17,7 @@ const OTURUM_SURE_MS = 8 * 60 * 60 * 1000;
 const LOGIN_ATTEMPTS_KOLONLARI = [
     'anahtar',
     'ip',
-    'kullanici_adi',
+    'telefon',
     'sayi',
     'ilk_deneme_ms',
     'kilitli_kadar_ms',
@@ -41,14 +42,8 @@ function istemciIP(req) {
     return String(req.ip || req.socket.remoteAddress || 'bilinmiyor').replace(/^::ffff:/, '');
 }
 
-function kullaniciAdiNormalizeEt(kullaniciAdi) {
-    return String(kullaniciAdi || '')
-        .trim()
-        .toLocaleLowerCase('tr');
-}
-
-function limiterAnahtari(ip, kullaniciAdi) {
-    return ip + ':' + kullaniciAdiNormalizeEt(kullaniciAdi);
+function limiterAnahtari(ip, telefon) {
+    return ip + ':' + telefon;
 }
 
 function kalanDakika(kilitliKadarMs) {
@@ -148,7 +143,7 @@ function kilitMi(anahtar) {
     return kilitMiBellek(anahtar);
 }
 
-function yanlisDenemeSqlite(ip, kullaniciAdi, anahtar) {
+function yanlisDenemeSqlite(ip, telefon, anahtar) {
     const simdi = Date.now();
     let k = db
         .prepare('SELECT sayi, ilk_deneme_ms, kilitli_kadar_ms FROM login_attempts WHERE anahtar = ?')
@@ -165,17 +160,17 @@ function yanlisDenemeSqlite(ip, kullaniciAdi, anahtar) {
     db.prepare(
         `
         INSERT INTO login_attempts
-            (anahtar, ip, kullanici_adi, sayi, ilk_deneme_ms, kilitli_kadar_ms, guncellenme_tarihi)
+            (anahtar, ip, telefon, sayi, ilk_deneme_ms, kilitli_kadar_ms, guncellenme_tarihi)
         VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(anahtar) DO UPDATE SET
             ip = excluded.ip,
-            kullanici_adi = excluded.kullanici_adi,
+            telefon = excluded.telefon,
             sayi = excluded.sayi,
             ilk_deneme_ms = excluded.ilk_deneme_ms,
             kilitli_kadar_ms = excluded.kilitli_kadar_ms,
             guncellenme_tarihi = CURRENT_TIMESTAMP
     `
-    ).run(anahtar, ip, kullaniciAdi, sayi, ilkDenemeMs, kilitliKadarMs);
+    ).run(anahtar, ip, telefon, sayi, ilkDenemeMs, kilitliKadarMs);
 
     return MAX_DENEME - sayi;
 }
@@ -238,8 +233,8 @@ function ipLimitAsildiMi(ip, anahtar) {
     return ipLimitAsildiMiBellek(ip, anahtar);
 }
 
-function yanlisDeneme(ip, kullaniciAdi, anahtar) {
-    if (loginAttemptsTablosuVarMi()) return yanlisDenemeSqlite(ip, kullaniciAdi, anahtar);
+function yanlisDeneme(ip, telefon, anahtar) {
+    if (loginAttemptsTablosuVarMi()) return yanlisDenemeSqlite(ip, telefon, anahtar);
     return yanlisDenemeBellek(anahtar);
 }
 
@@ -290,16 +285,20 @@ function oturumCookieTemizlemeAyarlari(req) {
 
 router.post('/login', (req, res) => {
     const ip = istemciIP(req);
-    const { kullanici_adi, sifre } = req.body;
+    const { telefon, sifre } = req.body;
 
-    if (!kullanici_adi || !sifre) {
-        return res.status(400).json({ hata: 'Kullanıcı adı ve şifre gereklidir.' });
+    if (!telefon || !sifre) {
+        return res.status(400).json({ hata: 'Telefon numarası ve şifre gereklidir.' });
+    }
+
+    const normalizeTelefon = telefonNormalizeEt(telefon);
+    if (!normalizeTelefon) {
+        return res.status(400).json({ hata: 'Geçerli bir telefon numarası girin.' });
     }
 
     loginAttemptTemizligiYap();
 
-    const normalizeKullaniciAdi = kullaniciAdiNormalizeEt(kullanici_adi);
-    const anahtar = limiterAnahtari(ip, normalizeKullaniciAdi);
+    const anahtar = limiterAnahtari(ip, normalizeTelefon);
     const kilitliDakika = kilitMi(anahtar);
     if (kilitliDakika) {
         return res.status(429).json({
@@ -307,28 +306,28 @@ router.post('/login', (req, res) => {
         });
     }
 
-    const kullanici = db.prepare('SELECT * FROM kullanicilar WHERE kullanici_adi = ?').get(kullanici_adi);
+    const kullanici = db.prepare('SELECT * FROM kullanicilar WHERE telefon = ?').get(normalizeTelefon);
     if (!kullanici) {
         if (ipLimitAsildiMi(ip, anahtar)) {
-            return res.status(429).json({ hata: 'Çok fazla farklı kullanıcı adı denendi. Daha sonra tekrar deneyin.' });
+            return res.status(429).json({ hata: 'Çok fazla farklı telefon denendi. Daha sonra tekrar deneyin.' });
         }
-        const kalan = yanlisDeneme(ip, normalizeKullaniciAdi, anahtar);
+        const kalan = yanlisDeneme(ip, normalizeTelefon, anahtar);
         if (kalan <= 0) {
             return res.status(429).json({ hata: 'Çok fazla başarısız deneme. 15 dakika kilitlendi.' });
         }
-        return res.status(401).json({ hata: 'Kullanıcı adı veya şifre hatalı. Kalan deneme: ' + kalan });
+        return res.status(401).json({ hata: 'Telefon veya şifre hatalı. Kalan deneme: ' + kalan });
     }
 
     const sifreDogru = bcrypt.compareSync(sifre, String(kullanici.sifre || ''));
     if (!sifreDogru) {
         if (ipLimitAsildiMi(ip, anahtar)) {
-            return res.status(429).json({ hata: 'Çok fazla farklı kullanıcı adı denendi. Daha sonra tekrar deneyin.' });
+            return res.status(429).json({ hata: 'Çok fazla farklı telefon denendi. Daha sonra tekrar deneyin.' });
         }
-        const kalan = yanlisDeneme(ip, normalizeKullaniciAdi, anahtar);
+        const kalan = yanlisDeneme(ip, normalizeTelefon, anahtar);
         if (kalan <= 0) {
             return res.status(429).json({ hata: 'Çok fazla başarısız deneme. 15 dakika kilitlendi.' });
         }
-        return res.status(401).json({ hata: 'Kullanıcı adı veya şifre hatalı. Kalan deneme: ' + kalan });
+        return res.status(401).json({ hata: 'Telefon veya şifre hatalı. Kalan deneme: ' + kalan });
     }
 
     basariliGiris(anahtar);
@@ -339,7 +338,7 @@ router.post('/login', (req, res) => {
     const token = jwt.sign(
         {
             id: kullanici.id,
-            kullanici_adi: kullanici.kullanici_adi,
+            telefon: kullanici.telefon,
             rol: kullanici.rol,
             tokenVersion: Number(kullanici.token_version) || 0
         },
@@ -352,7 +351,7 @@ router.post('/login', (req, res) => {
         mesaj: 'Giriş başarılı.',
         kullanici: {
             id: kullanici.id,
-            kullanici_adi: kullanici.kullanici_adi,
+            telefon: kullanici.telefon,
             rol: kullanici.rol,
             ad_soyad: kullanici.ad_soyad,
             gorev_adi: kullanici.gorev_adi,

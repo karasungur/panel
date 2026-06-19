@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../database/db');
 const { tokenDogrula } = require('../middleware/auth');
+const { kullaniciGorunenAd } = require('../utils/phone');
 const router = express.Router();
 
 // Yardimci: bildirim olustur
@@ -87,7 +88,7 @@ router.get('/sohbetler', tokenDogrula, (req, res) => {
         )
         SELECT
             sm.kisi_id,
-            k.kullanici_adi, k.ad_soyad, k.renk, k.profil_foto, k.son_giris, k.rol,
+            k.telefon, k.ad_soyad, k.renk, k.profil_foto, k.son_giris, k.rol,
             sm.metin AS son_mesaj,
             sm.tarih AS son_tarih,
             COALESCE(o.okunmamis, 0) AS okunmamis
@@ -106,13 +107,14 @@ router.get('/kullanicilar', tokenDogrula, (req, res) => {
     const kullanicilar = db
         .prepare(
             `
-        SELECT id, kullanici_adi, ad_soyad, renk, profil_foto, son_giris, rol
+        SELECT id, telefon, ad_soyad, renk, profil_foto, son_giris, rol
         FROM kullanicilar
         WHERE id != ?
         ORDER BY
             CASE WHEN son_giris IS NOT NULL AND son_giris > datetime('now', '-5 minutes') THEN 0 ELSE 1 END,
             son_giris DESC,
-            kullanici_adi
+            ad_soyad,
+            telefon
     `
         )
         .all(req.kullanici.id);
@@ -131,7 +133,7 @@ router.get('/:id', tokenDogrula, (req, res) => {
             `
         SELECT *
         FROM (
-            SELECT om.*, k.ad_soyad AS gonderen_ad_soyad, k.kullanici_adi AS gonderen_kullanici_adi,
+            SELECT om.*, k.ad_soyad AS gonderen_ad_soyad, k.telefon AS gonderen_telefon,
                 k.renk AS gonderen_renk, k.profil_foto AS gonderen_foto
             FROM ozel_mesajlar om
             JOIN kullanicilar k ON om.gonderen_id = k.id
@@ -166,8 +168,8 @@ router.post('/', tokenDogrula, (req, res) => {
         .run(req.kullanici.id, parseInt(alici_id), metin.trim());
 
     // Bildirim olustur
-    const gonderen = db.prepare('SELECT ad_soyad, kullanici_adi FROM kullanicilar WHERE id = ?').get(req.kullanici.id);
-    const ad = gonderen?.ad_soyad || gonderen?.kullanici_adi || 'Kullanıcı';
+    const gonderen = db.prepare('SELECT ad_soyad, telefon FROM kullanicilar WHERE id = ?').get(req.kullanici.id);
+    const ad = kullaniciGorunenAd(gonderen);
     const onIzleme = metin.trim().substring(0, 60) + (metin.length > 60 ? '...' : '');
     bildirimOlustur(
         parseInt(alici_id),

@@ -2,7 +2,7 @@ declare global {
     namespace Express {
         interface KullaniciOturumu {
             id: number;
-            kullanici_adi: string;
+            telefon: string;
             rol: string;
             ad_soyad?: string | null;
             gorev_adi?: string | null;

@@ -37,8 +37,10 @@ function placeholderMi(value) {
 function parolaHatasi(parola, options = {}) {
     const password = metin(parola);
     const minLength = options.admin ? MIN_ADMIN_PAROLA_UZUNLUK : MIN_PAROLA_UZUNLUK;
-    const username = metin(options.kullaniciAdi).toLowerCase();
+    const kimlik = metin(options.kimlik || options.telefon || options.kullaniciAdi).toLowerCase();
+    const kimlikRakam = kimlik.replace(/\D/g, '');
     const normalized = password.toLowerCase();
+    const normalizedRakam = normalized.replace(/\D/g, '');
 
     if (password.length < minLength) {
         return `Şifre en az ${minLength} karakter olmalıdır.`;
@@ -46,8 +48,8 @@ function parolaHatasi(parola, options = {}) {
     if (ZAYIF_PAROLALAR.has(normalized) || placeholderMi(password)) {
         return 'Şifre varsayılan veya kolay tahmin edilebilir olmamalıdır.';
     }
-    if (username && normalized === username) {
-        return 'Şifre kullanıcı adı ile aynı olamaz.';
+    if (kimlik && (normalized === kimlik || (kimlikRakam && normalizedRakam === kimlikRakam))) {
+        return 'Şifre giriş bilgisi ile aynı olamaz.';
     }
     return null;
 }

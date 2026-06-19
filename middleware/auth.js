@@ -32,7 +32,7 @@ const JWT_SECRET = jwtSecretAl();
 const db = require('../database/db');
 
 const kullaniciSorgu = db.prepare(`
-    SELECT id, kullanici_adi, rol, ad_soyad, gorev_adi, renk, profil_foto, token_version
+    SELECT id, telefon, rol, ad_soyad, gorev_adi, renk, profil_foto, token_version
     FROM kullanicilar
     WHERE id = ?
 `);
@@ -107,7 +107,7 @@ function tokenDogrula(req, res, next) {
 
         req.kullanici = {
             id: kullanici.id,
-            kullanici_adi: kullanici.kullanici_adi,
+            telefon: kullanici.telefon,
             rol: kullanici.rol,
             ad_soyad: kullanici.ad_soyad,
             gorev_adi: kullanici.gorev_adi,

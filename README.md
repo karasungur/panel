@@ -4,7 +4,7 @@ Kapalı devre, kurumsal Tanıtım ve Medya yönetim paneli.
 
 ## Özellikler
 
-- Güvenli giriş (kullanıcı adı + şifre)
+- Güvenli giriş (telefon + şifre)
 - İnteraktif Türkiye haritası — il üzerine gelince başkan fotoğrafı, adı, telefonu ve ilçe sayısı
 - İl tıklanınca aynı sayfada aşağı kayarak ilçeler açılır
 - Çoklu il atama (bir kullanıcıya birden fazla il)
@@ -14,7 +14,7 @@ Kapalı devre, kurumsal Tanıtım ve Medya yönetim paneli.
 - Kullanıcı yönetimi: görev adı, etiket rengi, isim-soyisim
 - Görev sistemi: admin kullanıcılara görev atar
 - Ortak ekip sohbeti (admin sıfırlayabilir)
-- Profil: herkes kendi ad-soyad/kullanıcı adı/şifresini değiştirir
+- Profil: herkes kendi ad-soyad/telefon/şifresini değiştirir
 - Admin: herkesin şifresini değiştirebilir
 - Açık/kurumsal lacivert tema
 
@@ -53,7 +53,7 @@ Node.js 22.13+ gereklidir (node:sqlite için).
 | `TRUST_PROXY`          | Onerilir              | Reverse proxy arkasinda `1`.                                                                               |
 | `DATA_DIR`             | Production'da zorunlu | `panel.db` ve upload verileri icin kalici dizin.                                                           |
 | `BACKUP_DIR`           | Production'da zorunlu | `npm run backup` ciktilari icin dizin.                                                                     |
-| `ADMIN_KULLANICI_ADI`  | Evet                  | `npm run seed` ile olusturulan admin kullanici adi.                                                        |
+| `ADMIN_TELEFON`        | Evet                  | `npm run seed` ile olusturulan admin telefon numarasi (`+905xxxxxxxxx`).                                   |
 | `ADMIN_SIFRE`          | Evet                  | Ilk admin sifresi; production'da varsayilan kullanmayin.                                                   |
 | `JWT_SECRET`           | Evet                  | JWT imzalama anahtari; uzun ve rastgele olmali.                                                            |
 | `AUTH_COOKIE_SECURE`   | Opsiyonel             | `true` ise oturum cookie'si yalnizca HTTPS ile gonderilir. Bos ise production/HTTPS durumuna gore secilir. |

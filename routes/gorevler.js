@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../database/db');
 const { tokenDogrula, adminVeyaYardimci } = require('../middleware/auth');
+const { kullaniciGorunenAd } = require('../utils/phone');
 const router = express.Router();
 
 // Yardimci: bildirim olustur
@@ -115,8 +116,8 @@ router.get('/', tokenDogrula, (req, res) => {
     if (req.kullanici.rol === 'admin' || req.kullanici.rol === 'yardimci') {
         const g = db
             .prepare(
-                `SELECT g.*, k.kullanici_adi, k.ad_soyad,
-            o.kullanici_adi AS olusturan_adi, o.ad_soyad AS olusturan_ad_soyad
+                `SELECT g.*, k.telefon, k.ad_soyad,
+            o.telefon AS olusturan_telefon, o.ad_soyad AS olusturan_ad_soyad
             FROM gorevler g
             JOIN kullanicilar k ON g.kullanici_id=k.id
             LEFT JOIN kullanicilar o ON g.olusturan_id=o.id
@@ -132,7 +133,7 @@ router.get('/', tokenDogrula, (req, res) => {
     }
     const g = db
         .prepare(
-            `SELECT g.*, o.kullanici_adi AS olusturan_adi, o.ad_soyad AS olusturan_ad_soyad
+            `SELECT g.*, o.telefon AS olusturan_telefon, o.ad_soyad AS olusturan_ad_soyad
         FROM gorevler g
         LEFT JOIN kullanicilar o ON g.olusturan_id=o.id
         WHERE g.kullanici_id = ?
@@ -167,8 +168,8 @@ router.post('/', tokenDogrula, adminVeyaYardimci, (req, res) => {
         .run(kullanici_id, baslik, aciklama || null, oncelikDeg, kategoriDeg, sonTarihDeg, tekrarDeg, req.kullanici.id);
 
     // Bildirim olustur
-    const olusturan = db.prepare('SELECT ad_soyad, kullanici_adi FROM kullanicilar WHERE id = ?').get(req.kullanici.id);
-    const olusturanAd = olusturan?.ad_soyad || olusturan?.kullanici_adi || 'Yönetici';
+    const olusturan = db.prepare('SELECT ad_soyad, telefon FROM kullanicilar WHERE id = ?').get(req.kullanici.id);
+    const olusturanAd = kullaniciGorunenAd(olusturan, 'Yönetici');
     let bildirimBaslik = 'Yeni görev: ' + baslik;
     if (oncelikDeg === 'acil') bildirimBaslik = '🚨 ACİL Görev: ' + baslik;
     bildirimOlustur(
@@ -248,9 +249,9 @@ router.put('/:id/durum', tokenDogrula, (req, res) => {
         if (durum === 'tamamlandi') {
             if (guncelGorev.olusturan_id && guncelGorev.olusturan_id !== req.kullanici.id) {
                 const k = db
-                    .prepare('SELECT ad_soyad, kullanici_adi FROM kullanicilar WHERE id = ?')
+                    .prepare('SELECT ad_soyad, telefon FROM kullanicilar WHERE id = ?')
                     .get(guncelGorev.kullanici_id);
-                const ad = k?.ad_soyad || k?.kullanici_adi || 'Kullanıcı';
+                const ad = kullaniciGorunenAd(k);
                 tamamlandiBildirimi = {
                     kullanici_id: Number(guncelGorev.olusturan_id),
                     baslik: 'Görev tamamlandı: ' + guncelGorev.baslik,
