@@ -1,0 +1,20 @@
+{
+    "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+    "files": {
+        "ignoreUnknown": true,
+        "includes": ["public/*.html", "public/**/*.html"]
+    },
+    "formatter": {
+        "enabled": false
+    },
+    "linter": {
+        "enabled": true,
+        "includes": ["public/*.html", "public/**/*.html"]
+    },
+    "html": {
+        "experimentalFullSupportEnabled": true,
+        "linter": {
+            "enabled": true
+        }
+    }
+}

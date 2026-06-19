@@ -21,6 +21,8 @@ declare global {
         statusCode?: number;
         kod?: string;
         detaylar?: unknown;
+        type?: string;
+        body?: unknown;
     }
 }
 

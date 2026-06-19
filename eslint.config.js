@@ -40,5 +40,16 @@ module.exports = defineConfig([
             ]
         }
     },
+    {
+        files: ['public/assets/**/*.js'],
+        languageOptions: {
+            ecmaVersion: 2023,
+            sourceType: 'module',
+            globals: {
+                ...globals.browser,
+                ...globals.es2023
+            }
+        }
+    },
     eslintConfigPrettier
 ]);
