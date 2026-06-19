@@ -23,7 +23,7 @@ Kapalı devre, kurumsal Tanıtım ve Medya yönetim paneli.
 1. PowerShell aç, `cd Desktop\tm\panel`
 2. `npm install`
 3. `Copy-Item .env.example .env` sonra `notepad .env` ile düzenle
-4. Harita dosyası `public/turkiye.svg` içinde hazır gelir. Yeniden üretmek gerekirse `tools/harita-indir.html`'i çift tıkla → indir → `turkiye.svg`'yi `public` klasörüne koy
+4. Harita dosyası `public/turkiye.svg` içinde hazır gelir.
 5. `npm run seed`
 6. `npm start`
 7. Tarayıcıda http://localhost:3000
