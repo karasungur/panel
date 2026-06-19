@@ -5,14 +5,6 @@ const db = require('../database/db');
 const { JWT_SECRET, tokenDogrula } = require('../middleware/auth');
 const router = express.Router();
 
-function uretimOrtamiMi() {
-    return process.env.NODE_ENV === 'production';
-}
-
-if (uretimOrtamiMi() && !(process.env.SAFE_KEY || '').trim()) {
-    throw new Error('Production ortaminda SAFE_KEY zorunludur.');
-}
-
 // ============ BRUTE FORCE KORUMASI ============
 const yanlisDenemeler = new Map();
 const MAX_DENEME = 5;
@@ -56,12 +48,6 @@ function basariliGiris(ip) {
     yanlisDenemeler.delete(ip);
 }
 
-function safeKeyAl() {
-    const row = db.prepare("SELECT deger FROM ayarlar WHERE anahtar = 'safe_key'").get();
-    if (row) return row.deger;
-    return process.env.SAFE_KEY || '';
-}
-
 router.post('/login', (req, res) => {
     const ip = istemciIP(req);
 
@@ -72,15 +58,8 @@ router.post('/login', (req, res) => {
         });
     }
 
-    const { kullanici_adi, sifre, ozel_anahtar } = req.body;
+    const { kullanici_adi, sifre } = req.body;
 
-    if (!ozel_anahtar || ozel_anahtar !== safeKeyAl()) {
-        const kalan = yanlisDeneme(ip);
-        if (kalan <= 0) {
-            return res.status(429).json({ hata: 'Çok fazla başarısız deneme. 15 dakika kilitlendi.' });
-        }
-        return res.status(401).json({ hata: 'Özel anahtar hatalı. Kalan deneme: ' + kalan });
-    }
     if (!kullanici_adi || !sifre) {
         return res.status(400).json({ hata: 'Kullanıcı adı ve şifre gereklidir.' });
     }

@@ -3,7 +3,7 @@
 Kapalı devre, kurumsal Tanıtım ve Medya yönetim paneli.
 
 ## Özellikler
-- Güvenli giriş (kullanıcı adı + şifre + özel anahtar)
+- Güvenli giriş (kullanıcı adı + şifre)
 - İnteraktif Türkiye haritası — il üzerine gelince başkan fotoğrafı, adı, telefonu ve ilçe sayısı
 - İl tıklanınca aynı sayfada aşağı kayarak ilçeler açılır
 - Çoklu il atama (bir kullanıcıya birden fazla il)
@@ -14,7 +14,7 @@ Kapalı devre, kurumsal Tanıtım ve Medya yönetim paneli.
 - Görev sistemi: admin kullanıcılara görev atar
 - Ortak ekip sohbeti (admin sıfırlayabilir)
 - Profil: herkes kendi ad-soyad/kullanıcı adı/şifresini değiştirir
-- Admin: özel anahtarı ve herkesin şifresini değiştirebilir
+- Admin: herkesin şifresini değiştirebilir
 - Açık/kurumsal lacivert tema
 
 ## Kurulum (Windows)
@@ -53,7 +53,6 @@ Node.js 22.13+ gereklidir (node:sqlite için).
 | `BACKUP_DIR` | Production'da zorunlu | `npm run backup` ciktilari icin dizin. |
 | `ADMIN_KULLANICI_ADI` | Evet | `npm run seed` ile olusturulan admin kullanici adi. |
 | `ADMIN_SIFRE` | Evet | Ilk admin sifresi; production'da varsayilan kullanmayin. |
-| `SAFE_KEY` | Evet | Giris ekranindaki ortak ozel anahtar. |
 | `JWT_SECRET` | Evet | JWT imzalama anahtari; uzun ve rastgele olmali. |
 | `GEMINI_AI_ENABLED` | Opsiyonel | `true` olmadikca Gemini destekli Excel analizi kapali kalir. |
 | `GEMINI_API_KEY` | Opsiyonel | AI etkinse Gemini API anahtari. |

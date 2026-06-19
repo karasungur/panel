@@ -7,8 +7,8 @@ const adminKullaniciAdi = process.env.ADMIN_KULLANICI_ADI || 'admin';
 const adminSifre = process.env.ADMIN_SIFRE || 'admin123';
 const prod = process.env.NODE_ENV === 'production';
 
-if (prod && (!process.env.ADMIN_KULLANICI_ADI || !process.env.ADMIN_SIFRE || !process.env.SAFE_KEY || !process.env.JWT_SECRET)) {
-    throw new Error('Production icin ADMIN_KULLANICI_ADI, ADMIN_SIFRE, SAFE_KEY ve JWT_SECRET zorunludur.');
+if (prod && (!process.env.ADMIN_KULLANICI_ADI || !process.env.ADMIN_SIFRE || !process.env.JWT_SECRET)) {
+    throw new Error('Production icin ADMIN_KULLANICI_ADI, ADMIN_SIFRE ve JWT_SECRET zorunludur.');
 }
 
 const mevcutAdmin = db.prepare('SELECT id FROM kullanicilar WHERE kullanici_adi = ?').get(adminKullaniciAdi);
@@ -21,13 +21,6 @@ if (mevcutAdmin) {
     console.log('Admin kullanici olusturuldu:');
     console.log('  Kullanici adi : ' + adminKullaniciAdi);
     if (!prod) console.log('  Sifre         : ' + adminSifre);
-}
-
-const safeKey = process.env.SAFE_KEY || '';
-const mevcutKey = db.prepare("SELECT deger FROM ayarlar WHERE anahtar = 'safe_key'").get();
-if (!mevcutKey) {
-    db.prepare("INSERT INTO ayarlar (anahtar, deger) VALUES ('safe_key', ?)").run(safeKey);
-    console.log('Ozel anahtar (safe key) veritabanina kaydedildi.');
 }
 
 const ilEkle = db.prepare('INSERT OR IGNORE INTO iller (plaka, il_adi) VALUES (?, ?)');

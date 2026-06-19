@@ -59,13 +59,6 @@ input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0
         <input type="password" id="sifre" placeholder="Şifreniz" autocomplete="current-password">
       </div>
     </div>
-    <div class="alan">
-      <label>Özel Anahtar</label>
-      <div class="input-sar">
-        <svg viewBox="0 0 24 24"><path d="M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"/></svg>
-        <input type="password" id="ozel_anahtar" placeholder="Özel anahtar" autocomplete="current-password">
-      </div>
-    </div>
     <button class="giris-btn" id="giris-btn" onclick="girisYap()">
       <span>Giriş Yap</span>
       <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:#fff"><path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/></svg>
@@ -88,13 +81,12 @@ async function yanitJsonOku(cevap){
 async function girisYap(){
   const kullanici_adi=document.getElementById('kullanici_adi').value.trim();
   const sifre=document.getElementById('sifre').value;
-  const ozel_anahtar=document.getElementById('ozel_anahtar').value;
   const hataEl=document.getElementById('hata-mesaji');
   const btn=document.getElementById('giris-btn');
   hataEl.style.display='none';
   btn.disabled=true;
   try{
-    const cevap=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kullanici_adi,sifre,ozel_anahtar})});
+    const cevap=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kullanici_adi,sifre})});
     const veri=await yanitJsonOku(cevap);
     if(cevap.ok&&veri.token&&veri.kullanici){
       localStorage.setItem('token',veri.token);

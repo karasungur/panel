@@ -22,7 +22,6 @@ async function startTestServer(t) {
         BACKUP_DIR: process.env.BACKUP_DIR,
         ADMIN_KULLANICI_ADI: process.env.ADMIN_KULLANICI_ADI,
         ADMIN_SIFRE: process.env.ADMIN_SIFRE,
-        SAFE_KEY: process.env.SAFE_KEY,
         JWT_SECRET: process.env.JWT_SECRET,
         GEMINI_AI_ENABLED: process.env.GEMINI_AI_ENABLED,
         GEMINI_API_KEY: process.env.GEMINI_API_KEY,
@@ -38,7 +37,6 @@ async function startTestServer(t) {
     process.env.BACKUP_DIR = path.join(tmpDir, 'backups');
     process.env.ADMIN_KULLANICI_ADI = 'security-admin';
     process.env.ADMIN_SIFRE = 'security-admin-password';
-    process.env.SAFE_KEY = 'security-safe-key';
     process.env.JWT_SECRET = 'security-jwt-secret-with-enough-length-for-tests';
     process.env.GEMINI_AI_ENABLED = 'false';
     process.env.GEMINI_API_KEY = '';
@@ -72,8 +70,7 @@ async function startTestServer(t) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     kullanici_adi: process.env.ADMIN_KULLANICI_ADI,
-                    sifre: password,
-                    ozel_anahtar: process.env.SAFE_KEY
+                    sifre: password
                 })
             });
             assert.equal(response.status, 200);
@@ -87,6 +84,17 @@ async function startTestServer(t) {
 test('security integration flows', async (t) => {
     const ctx = await startTestServer(t);
     const token = await ctx.login();
+
+    const legacyLogin = await fetch(`${ctx.baseUrl}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            kullanici_adi: process.env.ADMIN_KULLANICI_ADI,
+            sifre: process.env.ADMIN_SIFRE,
+            ozel_anahtar: 'ignored-legacy-value'
+        })
+    });
+    assert.equal(legacyLogin.status, 200);
 
     const unauthenticated = await fetch(`${ctx.baseUrl}/uploads/aaaaaaaaaaaaaaaaaaaaaaaa.jpg`);
     assert.equal(unauthenticated.status, 401);

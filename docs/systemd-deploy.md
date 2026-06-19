@@ -51,7 +51,6 @@ DATA_DIR=/var/lib/panel
 BACKUP_DIR=/var/backups/panel
 ADMIN_KULLANICI_ADI=admin
 ADMIN_SIFRE=degistirilecek-guclu-sifre
-SAFE_KEY=degistirilecek-ortak-anahtar
 JWT_SECRET=degistirilecek-uzun-rastgele-jwt-secret
 GEMINI_AI_ENABLED=false
 GEMINI_API_KEY=

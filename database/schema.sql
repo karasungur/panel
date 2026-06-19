@@ -59,11 +59,6 @@ CREATE TABLE IF NOT EXISTS kullanici_iller (
     FOREIGN KEY (il_id) REFERENCES iller(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS ayarlar (
-    anahtar TEXT PRIMARY KEY,
-    deger TEXT
-);
-
 CREATE TABLE IF NOT EXISTS gorevler (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     kullanici_id INTEGER NOT NULL,

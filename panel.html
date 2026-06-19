@@ -405,7 +405,6 @@ tr:hover td{background:var(--surface-low)}
     <button id="menu-kullanicilar" onclick="sayfaGoster('kullanicilar')"><svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg><span>Kullanıcı Yönetimi</span></button>
     <button id="menu-profil" onclick="sayfaGoster('profil')"><svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg><span>Profilim</span></button>
     <button id="menu-notlar" onclick="sayfaGoster('notlar')"><svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg><span>Notlarım</span></button>
-    <button id="menu-ayarlar" onclick="sayfaGoster('ayarlar')"><svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg><span>Güvenlik Ayarları</span></button>
   </nav>
   <div class="sb-alt">
     <button onclick="cikisYap()"><svg viewBox="0 0 24 24"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg><span>Çıkış Yap</span></button>
@@ -597,17 +596,6 @@ tr:hover td{background:var(--surface-low)}
       </div>
     </div>
 
-    <div class="sayfa" id="sayfa-ayarlar">
-      <h1 class="sayfa-baslik">Güvenlik Ayarları</h1>
-      <p class="sayfa-aciklama">Sistem güvenlik anahtarını yönetin.</p>
-      <div class="bolum" style="max-width:560px">
-        <div class="bolum-baslik"><h2>Özel Anahtar (Safe Key)</h2></div>
-        <p style="font-size:13px;color:var(--secondary);margin-bottom:14px">Tüm kullanıcıların giriş ekranında girdiği ortak anahtar.</p>
-        <label style="font-size:13px;font-weight:600;color:var(--secondary)">Yeni Özel Anahtar</label>
-        <input type="text" id="yeni-safe-key" placeholder="Yeni özel anahtar" style="width:100%;background:var(--surface-low);border:1px solid var(--outline-variant);border-radius:9px;padding:11px;margin:6px 0 15px;font-family:inherit">
-        <button class="btn" onclick="safeKeyDegistir()">Özel Anahtarı Güncelle</button>
-      </div>
-    </div>
   </div>
 </div>
 <div class="harita-bilgi" id="harita-bilgi"></div>
@@ -794,14 +782,9 @@ profilBilgileriGoster();
 
 if (kullanici.rol === 'kullanici'){
   document.getElementById('menu-kullanicilar').style.display='none';
-  document.getElementById('menu-ayarlar').style.display='none';
 }else{
   document.getElementById('gorev-ekle-btn').style.display='inline-flex';
   document.getElementById('chat-sifirla-btn').style.display='inline-flex';
-}
-// Guvenlik Ayarlari sadece admin'de
-if (kullanici.rol !== 'admin'){
-  document.getElementById('menu-ayarlar').style.display='none';
 }
 
 function sayfaGoster(ad){
@@ -1221,14 +1204,6 @@ async function profilSifreDegistir(){
   if(s.hata){toast(s.hata);return;}
   document.getElementById('profil-eski-sifre').value='';document.getElementById('profil-yeni-sifre').value='';
   toast('Şifreniz güncellendi.');
-}
-async function safeKeyDegistir(){
-  const yk=val('yeni-safe-key');
-  if(!yk){toast('Yeni anahtar girin.');return;}
-  const s=await apicagir('/api/ayarlar/safe-key','PUT',{yeni_anahtar:yk});
-  if(s.hata){toast(s.hata);return;}
-  document.getElementById('yeni-safe-key').value='';
-  toast('Özel anahtar güncellendi.');
 }
 async function gorevleriYukle(){
   const gs=await apicagir('/api/gorevler');

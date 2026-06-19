@@ -13,7 +13,6 @@ const REQUIRED_ENV_KEYS = [
     'BACKUP_DIR',
     'ADMIN_KULLANICI_ADI',
     'ADMIN_SIFRE',
-    'SAFE_KEY',
     'JWT_SECRET',
     'GEMINI_AI_ENABLED',
     'GEMINI_API_KEY',
@@ -59,7 +58,6 @@ test('GET /api returns API status', async (t) => {
         BACKUP_DIR: process.env.BACKUP_DIR,
         ADMIN_KULLANICI_ADI: process.env.ADMIN_KULLANICI_ADI,
         ADMIN_SIFRE: process.env.ADMIN_SIFRE,
-        SAFE_KEY: process.env.SAFE_KEY,
         JWT_SECRET: process.env.JWT_SECRET,
         GEMINI_AI_ENABLED: process.env.GEMINI_AI_ENABLED,
         GEMINI_API_KEY: process.env.GEMINI_API_KEY,
@@ -75,7 +73,6 @@ test('GET /api returns API status', async (t) => {
     process.env.BACKUP_DIR = path.join(tmpDir, 'backups');
     process.env.ADMIN_KULLANICI_ADI = 'smoke-admin';
     process.env.ADMIN_SIFRE = 'smoke-admin-password';
-    process.env.SAFE_KEY = 'smoke-safe-key';
     process.env.JWT_SECRET = 'smoke-jwt-secret-with-enough-length-for-tests';
     process.env.GEMINI_AI_ENABLED = 'false';
     process.env.GEMINI_API_KEY = '';
