@@ -2073,38 +2073,6 @@ tr:hover td {
         max-width: 320px;
         right: 0;
     }
-    .notlar-duzen {
-        grid-template-columns: 1fr;
-        height: auto;
-        position: relative;
-    }
-    .notlar-liste {
-        display: block;
-        max-height: none;
-    }
-    .notlar-editor {
-        display: none;
-        height: calc(100vh - 120px);
-    }
-    /* When editor is active, show editor, hide list */
-    #sayfa-notlar.editor-aktif .notlar-liste {
-        display: none;
-    }
-    #sayfa-notlar.editor-aktif .notlar-editor {
-        display: flex;
-    }
-
-    #sayfa-notlar.editor-aktif .mobil-geri-btn {
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        font-weight: 700;
-        color: var(--primary) !important;
-        margin-right: 8px;
-    }
-    .not-kart .not-sil {
-        opacity: 1 !important;
-    }
     #harita-yer svg {
         max-height: 50vh;
     }
@@ -2445,6 +2413,41 @@ tr:hover td {
     height: 60px;
     fill: var(--outline-variant);
     margin-bottom: 14px;
+}
+
+@media (max-width: 900px) {
+    .notlar-duzen {
+        grid-template-columns: 1fr;
+        height: auto;
+        position: relative;
+    }
+    .notlar-liste {
+        display: block;
+        max-height: none;
+    }
+    .notlar-editor {
+        display: none;
+        height: calc(100vh - 120px);
+    }
+    /* When editor is active, show editor, hide list */
+    #sayfa-notlar.editor-aktif .notlar-liste {
+        display: none;
+    }
+    #sayfa-notlar.editor-aktif .notlar-editor {
+        display: flex;
+    }
+
+    #sayfa-notlar.editor-aktif .mobil-geri-btn {
+        display: inline-flex !important;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: var(--primary) !important;
+        margin-right: 8px;
+    }
+    .not-kart .not-sil {
+        opacity: 1 !important;
+    }
 }
 
 /* TOPLU DUZENLEME */

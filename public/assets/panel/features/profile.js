@@ -85,10 +85,6 @@ export function createProfileFeature(ctx) {
             profil_foto: val('profil-foto')
         };
         let hasError = false;
-        if (!adSoyad) {
-            hataSet('profil-ad-soyad', 'Ad Soyad gereklidir.');
-            hasError = true;
-        }
         if (!body.telefon) {
             hataSet('profil-telefon', 'Geçerli telefon numarası girin.');
             hasError = true;

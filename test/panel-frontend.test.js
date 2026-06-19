@@ -192,6 +192,111 @@ function createNotesContext(responses, stateOverrides = {}) {
     };
 }
 
+function createProfileDom(t, values = {}) {
+    const previousDocument = global.document;
+    const previousLocalStorage = global.localStorage;
+    const elements = {
+        'profil-ad-soyad': createDomElement(),
+        'profil-telefon': createDomElement(),
+        'profil-foto': createDomElement(),
+        'hata-profil-ad-soyad': createDomElement(),
+        'hata-profil-telefon': createDomElement()
+    };
+    for (const [id, value] of Object.entries(values)) {
+        if (elements[id]) elements[id].value = value;
+    }
+    const controls = [elements['profil-ad-soyad'], elements['profil-telefon']];
+    const errorTexts = [elements['hata-profil-ad-soyad'], elements['hata-profil-telefon']];
+    const fakeDocument = {
+        getElementById(id) {
+            return elements[id] || null;
+        },
+        querySelectorAll(selector) {
+            if (selector === '#sayfa-profil .hata-metni') return errorTexts;
+            if (selector === '#sayfa-profil .form-kontrol') return controls;
+            return [];
+        }
+    };
+    const localStorageWrites = [];
+
+    Object.defineProperty(global, 'document', {
+        configurable: true,
+        writable: true,
+        value: fakeDocument
+    });
+    Object.defineProperty(global, 'localStorage', {
+        configurable: true,
+        writable: true,
+        value: {
+            setItem(key, value) {
+                localStorageWrites.push([key, value]);
+            }
+        }
+    });
+
+    t.after(() => {
+        restoreGlobal('document', previousDocument);
+        restoreGlobal('localStorage', previousLocalStorage);
+    });
+
+    return { elements, localStorageWrites };
+}
+
+function createProfileContext(responses, elements, stateOverrides = {}) {
+    const apiCalls = [];
+    const profileInfoCalls = [];
+    const toastMessages = [];
+    const loginCalls = [];
+    const state = {
+        kullanici: {
+            ad_soyad: '',
+            telefon: '+905551000000',
+            profil_foto: ''
+        },
+        ...stateOverrides
+    };
+    const digitsOnly = (value) =>
+        String(value ?? '')
+            .replace(/\D/g, '')
+            .replace(/^90/, '')
+            .replace(/^0/, '');
+
+    return {
+        apiCalls,
+        loginCalls,
+        profileInfoCalls,
+        state,
+        toastMessages,
+        ctx: {
+            state,
+            actions: {
+                profilBilgileriGoster() {
+                    profileInfoCalls.push(true);
+                }
+            },
+            resimKaynakAta() {},
+            toast(message) {
+                toastMessages.push(message);
+            },
+            val(id) {
+                return elements[id]?.value || '';
+            },
+            telefonRakamlariniAl: digitsOnly,
+            telefonGonderimDegeri(value) {
+                const digits = digitsOnly(value);
+                return /^5\d{9}$/.test(digits) ? '+90' + digits : '';
+            },
+            async apicagir(url, method = 'GET', body = null) {
+                apiCalls.push([url, method, body]);
+                return responses.shift() || {};
+            },
+            loginSayfasinaGit() {
+                loginCalls.push(true);
+            }
+        }
+    };
+}
+
 function notesTestNote(id) {
     return {
         id,
@@ -506,6 +611,17 @@ test('panel dispatcher prefers private chat delete action over parent header act
     assert.deepEqual(order, ['preventDefault', 'delete-action', 'stopPropagation']);
 });
 
+test('mobile notes CSS overrides are declared after base notes editor styles', () => {
+    const css = fs.readFileSync(path.join(__dirname, '..', 'public/assets/panel/styles.css'), 'utf8');
+    const baseEditorIndex = css.indexOf('.notlar-editor {\n    background: var(--surface);');
+    const mobileNotesIndex = css.indexOf('@media (max-width: 900px) {\n    .notlar-duzen', baseEditorIndex);
+    const mobileEditorIndex = css.indexOf('.notlar-editor {\n        display: none;', mobileNotesIndex);
+
+    assert.ok(baseEditorIndex >= 0);
+    assert.ok(mobileNotesIndex > baseEditorIndex);
+    assert.ok(mobileEditorIndex > baseEditorIndex);
+});
+
 test('notes reload clears mobile editor state when selected note list becomes empty', async (t) => {
     const { createNotesFeature } = await importPanelModule('public/assets/panel/features/notes.js');
     const { elements } = createNotesDom(t);
@@ -553,6 +669,66 @@ test('notes reload clears mobile editor state after an API error response', asyn
     assert.equal(elements['sayfa-notlar'].classList.contains('editor-aktif'), false);
     assert.equal(elements['notlar-bos'].style.display, 'flex');
     assert.equal(elements['notlar-editor-icerik'].style.display, 'none');
+});
+
+test('profile save allows valid optional updates when name is empty', async (t) => {
+    const { createProfileFeature } = await importPanelModule('public/assets/panel/features/profile.js');
+    const { elements } = createProfileDom(t, {
+        'profil-ad-soyad': '',
+        'profil-telefon': '5551000001',
+        'profil-foto': '/uploads/profil.png'
+    });
+    const { apiCalls, profileInfoCalls, state, toastMessages, ctx } = createProfileContext(
+        [{ mesaj: 'Profiliniz güncellendi.' }],
+        elements,
+        {
+            kullanici: {
+                ad_soyad: '',
+                telefon: '+905551000000',
+                profil_foto: ''
+            }
+        }
+    );
+    const feature = createProfileFeature(ctx);
+
+    await feature.actions.profilKaydet();
+
+    assert.deepEqual(apiCalls, [
+        [
+            '/api/kullanicilar/profil/guncelle',
+            'PUT',
+            {
+                ad_soyad: '',
+                telefon: '+905551000001',
+                profil_foto: '/uploads/profil.png'
+            }
+        ]
+    ]);
+    assert.deepEqual(state.kullanici, {
+        ad_soyad: '',
+        telefon: '+905551000001',
+        profil_foto: '/uploads/profil.png'
+    });
+    assert.equal(elements['hata-profil-ad-soyad'].textContent, '');
+    assert.deepEqual(profileInfoCalls, [true]);
+    assert.deepEqual(toastMessages, ['Profiliniz güncellendi.']);
+});
+
+test('profile save still blocks invalid phone when name is empty', async (t) => {
+    const { createProfileFeature } = await importPanelModule('public/assets/panel/features/profile.js');
+    const { elements } = createProfileDom(t, {
+        'profil-ad-soyad': '',
+        'profil-telefon': '123',
+        'profil-foto': '/uploads/profil.png'
+    });
+    const { apiCalls, ctx } = createProfileContext([], elements);
+    const feature = createProfileFeature(ctx);
+
+    await feature.actions.profilKaydet();
+
+    assert.deepEqual(apiCalls, []);
+    assert.equal(elements['hata-profil-ad-soyad'].textContent, '');
+    assert.match(elements['hata-profil-telefon'].textContent, /Geçerli telefon/);
 });
 
 test('panel notifications open private-message links in the matching floating chat', async (t) => {
