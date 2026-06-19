@@ -29,7 +29,7 @@ if (mevcutAdmin) {
     const hash = bcrypt.hashSync(adminSifre, 10);
     db.prepare(
         "INSERT INTO kullanicilar (telefon, sifre, rol, ad_soyad, gorev_adi, renk) VALUES (?, ?, 'admin', ?, ?, ?)"
-    ).run(adminTelefon, hash, 'Sistem Yoneticisi', 'Genel Baskan', '#c1121f');
+    ).run(adminTelefon, hash, 'Alperen Furkan Zengin', 'Tanıtım ve Medya Başkanı', '#c1121f');
     console.log('Admin kullanici olusturuldu:');
     console.log('  Telefon       : ' + adminTelefon);
     if (!prod) console.log('  Sifre         : ' + adminSifre);
