@@ -176,7 +176,7 @@ router.post('/', tokenDogrula, (req, res) => {
         'mesaj_yeni',
         '💬 ' + ad + ' size yazdı',
         onIzleme,
-        '/panel.html#chat-balon-' + req.kullanici.id
+        '/panel/chat#chat-balon-' + req.kullanici.id
     );
 
     // Yaziyor durumunu temizle

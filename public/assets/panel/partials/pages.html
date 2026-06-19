@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="tr">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Panel Sayfaları</title>
+    </head>
+    <body>
+        <template id="panel-pages-template">
+            <div class="sayfa aktif" id="sayfa-harita">
+                <h1 class="sayfa-baslik">Türkiye Haritası</h1>
+                <p class="sayfa-aciklama">İl bazlı yönetim verilerini ve sorumlu başkanları inceleyin.</p>
+                <div class="kartlar">
+                    <div class="kart">
+                        <div class="ust">
+                            <div>
+                                <h3>Sorumlu İl</h3>
+                                <div class="sayi" id="kart-il">-</div>
+                            </div>
+                            <div class="ikon-kutu" style="background: var(--secondary-container)">
+                                <svg
+                                    aria-hidden="true"
+                                    focusable="false"
+                                    viewBox="0 0 24 24"
+                                    style="fill: var(--primary)"
+                                >
+                                    <path
+                                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="kart">
+                        <div class="ust">
+                            <div>
+                                <h3>Toplam İlçe</h3>
+                                <div class="sayi" id="kart-ilce">-</div>
+                            </div>
+                            <div class="ikon-kutu" style="background: var(--success-bg)">
+                                <svg
+                                    aria-hidden="true"
+                                    focusable="false"
+                                    viewBox="0 0 24 24"
+                                    style="fill: var(--success)"
+                                >
+                                    <path
+                                        d="M12 7V3H2v18h20V7H12zM6 19H4v-2h2v2zm0-4H4v-2h2v2zm0-4H4V9h2v2zm0-4H4V5h2v2zm4 12H8v-2h2v2zm0-4H8v-2h2v2z"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="kart">
+                        <div class="ust">
+                            <div>
+                                <h3>İl Başkanı Atanmış</h3>
+                                <div class="sayi" id="kart-dolu">-</div>
+                            </div>
+                            <div class="ikon-kutu" style="background: #fff3cd">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" style="fill: #856404">
+                                    <path
+                                        d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="kart">
+                        <div class="ust">
+                            <div>
+                                <h3>İlçe Başkanı Atanmış</h3>
+                                <div class="sayi" id="kart-dolu-ilce">-</div>
+                            </div>
+                            <div class="ikon-kutu" style="background: #e0e7ff">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" style="fill: #3730a3">
+                                    <path
+                                        d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
+                                    />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="harita-kutu">
+                    <div id="harita-yer"><p class="bos-mesaj" id="harita-mesaj">Harita yükleniyor...</p></div>
+                    <div class="harita-aciklama">
+                        <span><i class="renk-kutu" style="background: #00193c"></i> Başkan bilgisi girilmiş</span>
+                        <span><i class="renk-kutu" style="background: #6f8ec0"></i> Sorumlu olduğunuz iller</span>
+                        <span><i class="renk-kutu" style="background: #d4dae6"></i> Diğer iller</span>
+                    </div>
+                </div>
+                <!-- Harita altinda ilce paneli -->
+                <div class="bolum" id="harita-ilce-paneli" style="display: none; margin-top: 20px">
+                    <div class="bolum-baslik">
+                        <h2 id="harita-ilce-baslik">İlçeler</h2>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                            <button type="button" class="btn btn-ikincil" data-action-call="haritaIlceKapat()">
+                                Kapat
+                            </button>
+                            <div class="indir-wrap" style="position: relative; display: inline-block">
+                                <button
+                                    type="button"
+                                    class="btn btn-ikincil"
+                                    data-action-call="indirMenuTogla('tek-il-indir-menu')"
+                                >
+                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" /></svg
+                                    >Bu İli İndir ▾
+                                </button>
+                                <div
+                                    class="indir-menu"
+                                    id="tek-il-indir-menu"
+                                    style="
+                                        display: none;
+                                        position: absolute;
+                                        top: 100%;
+                                        right: 0;
+                                        background: var(--surface);
+                                        border: 1px solid var(--outline-variant);
+                                        border-radius: 10px;
+                                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+                                        z-index: 30;
+                                        min-width: 220px;
+                                        padding: 6px;
+                                        margin-top: 4px;
+                                    "
+                                >
+                                    <button type="button" class="indir-secenek" data-action-call="tekIlIndir('il')">
+                                        📋 Sadece il bilgileri
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="indir-secenek"
+                                        data-action-call="tekIlIndir('birlesik')"
+                                    >
+                                        📋 İl + ilçeler (birleşik)
+                                    </button>
+                                    <button type="button" class="indir-secenek" data-action-call="tekIlIndir('ilce')">
+                                        🏛️ Sadece ilçeler
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="button" class="btn" data-action-call="haritaIlceDuzenle()">
+                                İl Bilgilerini Düzenle
+                            </button>
+                        </div>
+                    </div>
+                    <div id="harita-il-baskan-ozet" style="margin-bottom: 18px"></div>
+                    <div style="overflow-x: auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>İlçe Adı</th>
+                                    <th>Tanıtım ve Medya Başkanı</th>
+                                    <th>Sosyal Medya</th>
+                                    <th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="harita-ilce-tablosu"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="sayfa" id="sayfa-iller">
+                <h1 class="sayfa-baslik">İl / İlçe Yönetimi</h1>
+                <p class="sayfa-aciklama">İl ve ilçe başkanlarını, sosyal medya bilgilerini yönetin.</p>
+                <div class="bolum">
+                    <div class="bolum-baslik">
+                        <h2>İller</h2>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                            <div class="indir-wrap" style="position: relative; display: inline-block">
+                                <button
+                                    type="button"
+                                    class="btn btn-ikincil"
+                                    data-action-call="indirMenuTogla('il-indir-menu')"
+                                >
+                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" /></svg
+                                    >Excel İndir ▾
+                                </button>
+                                <div
+                                    class="indir-menu"
+                                    id="il-indir-menu"
+                                    style="
+                                        display: none;
+                                        position: absolute;
+                                        top: 100%;
+                                        right: 0;
+                                        background: var(--surface);
+                                        border: 1px solid var(--outline-variant);
+                                        border-radius: 10px;
+                                        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+                                        z-index: 30;
+                                        min-width: 240px;
+                                        padding: 6px;
+                                        margin-top: 4px;
+                                    "
+                                >
+                                    <button type="button" class="indir-secenek" data-action-call="excelDisaAktar('il')">
+                                        📋 Tüm illeri indir
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="indir-secenek"
+                                        data-action-call="excelDisaAktar('birlesik')"
+                                    >
+                                        📋 Tüm il ve ilçeleri (birleşik)
+                                    </button>
+                                    <button type="button" class="indir-secenek" data-action-call="ilSeciminiIndir()">
+                                        ✓ Seçili illeri indir...
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="indir-secenek"
+                                        data-action-call="excelDisaAktar('ilce')"
+                                    >
+                                        🏛️ Sadece ilçeleri indir
+                                    </button>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                class="btn btn-ikincil"
+                                id="il-excel-btn"
+                                data-action-call="excelModalAc('il')"
+                            >
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                    <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z" /></svg
+                                >Excel Yükle
+                            </button>
+                            <button type="button" class="btn" data-action-call="topluIlModalAc()">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                    <path
+                                        d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"
+                                    /></svg
+                                >Toplu Düzenle
+                            </button>
+                        </div>
+                    </div>
+                    <div style="overflow-x: auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Plaka</th>
+                                    <th>İl Adı</th>
+                                    <th>Tanıtım ve Medya Başkanı</th>
+                                    <th>Sosyal Medya</th>
+                                    <th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="il-tablosu"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="bolum" id="ilce-bolumu" style="display: none">
+                    <div class="bolum-baslik">
+                        <h2 id="ilce-baslik">İlçeler</h2>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                            <button type="button" class="btn btn-ikincil" data-action-call="excelDisaAktar('ilce')">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                    <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" /></svg
+                                >Excel İndir
+                            </button>
+                            <button type="button" class="btn btn-ikincil" data-action-call="excelModalAc('ilce')">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                    <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z" /></svg
+                                >Excel Yükle
+                            </button>
+                            <button type="button" class="btn btn-ikincil" data-action-call="topluIlceModalAc()">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                    <path
+                                        d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"
+                                    /></svg
+                                >Toplu Düzenle
+                            </button>
+                            <button type="button" class="btn" data-action-call="ilceEkleModalAc()">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg
+                                >İlçe Ekle
+                            </button>
+                        </div>
+                    </div>
+                    <div style="overflow-x: auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>İlçe Adı</th>
+                                    <th>Tanıtım ve Medya Başkanı</th>
+                                    <th>Sosyal Medya</th>
+                                    <th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ilce-tablosu"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="sayfa" id="sayfa-gorevler">
+                <h1 class="sayfa-baslik">Görevler</h1>
+                <p class="sayfa-aciklama" id="gorev-aciklama">Size atanan görevler.</p>
+                <div class="bolum">
+                    <div class="bolum-baslik">
+                        <h2>Görev Listesi</h2>
+                        <button
+                            type="button"
+                            class="btn"
+                            id="gorev-ekle-btn"
+                            data-action-call="gorevEkleModalAc()"
+                            style="display: none"
+                        >
+                            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg
+                            >Görev Ata
+                        </button>
+                    </div>
+                    <div id="gorev-liste"></div>
+                </div>
+            </div>
+            <div class="sayfa" id="sayfa-chat">
+                <h1 class="sayfa-baslik">Ekip Sohbeti</h1>
+                <p class="sayfa-aciklama">Tüm ekip üyeleriyle ortak sohbet.</p>
+                <div class="chat-kutu">
+                    <div class="chat-baslik">
+                        <h2>Genel Sohbet</h2>
+                        <button
+                            type="button"
+                            class="btn sil-btn"
+                            id="chat-sifirla-btn"
+                            data-action-call="chatSifirla()"
+                            style="display: none"
+                        >
+                            <svg
+                                aria-hidden="true"
+                                focusable="false"
+                                viewBox="0 0 24 24"
+                                style="width: 16px; height: 16px"
+                            >
+                                <path
+                                    d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"
+                                /></svg
+                            >Sohbeti Sıfırla
+                        </button>
+                    </div>
+                    <div class="chat-mesajlar" id="chat-mesajlar"></div>
+                    <div class="chat-giris">
+                        <input
+                            type="text"
+                            id="chat-input"
+                            placeholder="Mesajınızı yazın..."
+                            data-enter-action="chatGonder"
+                        /><button type="button" data-action-call="chatGonder()">
+                            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="sayfa" id="sayfa-kullanicilar">
+                <h1 class="sayfa-baslik">Kullanıcı Yönetimi</h1>
+                <p class="sayfa-aciklama">Ekip üyelerini ekleyin, görev ve il atayın.</p>
+                <div class="bolum">
+                    <div class="bolum-baslik">
+                        <h2>Kullanıcılar</h2>
+                        <button type="button" class="btn" data-action-call="kullaniciEkleModalAc()">
+                            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                <path
+                                    d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                                /></svg
+                            >Kullanıcı Ekle
+                        </button>
+                    </div>
+                    <div style="overflow-x: auto">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Kullanıcı</th>
+                                    <th>Görev</th>
+                                    <th>Sorumlu İller</th>
+                                    <th>Son Giriş</th>
+                                    <th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="kullanici-tablosu"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="sayfa" id="sayfa-profil">
+                <h1 class="sayfa-baslik">Profilim</h1>
+                <p class="sayfa-aciklama">Kendi bilgilerinizi ve şifrenizi güncelleyin.</p>
+                <div class="bolum" style="max-width: 560px">
+                    <div class="bolum-baslik"><h2>Hesap Bilgileri</h2></div>
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px">
+                        <img
+                            alt=""
+                            class="foto-oniz"
+                            id="profil-foto-oniz"
+                            style="display: block; width: 72px; height: 72px"
+                        />
+                        <div>
+                            <label
+                                for="profil-foto-input"
+                                style="font-size: 13px; font-weight: 600; color: var(--secondary)"
+                                >Profil Fotoğrafı</label
+                            ><input
+                                type="file"
+                                id="profil-foto-input"
+                                accept="image/*"
+                                data-change-call="profilFotoSec(event)"
+                            />
+                        </div>
+                    </div>
+                    <input type="hidden" id="profil-foto" />
+                    <label for="profil-ad-soyad" style="font-size: 13px; font-weight: 600; color: var(--secondary)"
+                        >Ad Soyad</label
+                    >
+                    <input
+                        type="text"
+                        id="profil-ad-soyad"
+                        placeholder="Ad Soyad"
+                        style="
+                            width: 100%;
+                            background: var(--surface-low);
+                            border: 1px solid var(--outline-variant);
+                            border-radius: 9px;
+                            padding: 11px;
+                            margin: 6px 0 15px;
+                            font-family: inherit;
+                        "
+                    />
+                    <label for="profil-telefon" style="font-size: 13px; font-weight: 600; color: var(--secondary)"
+                        >Telefon</label
+                    >
+                    <input
+                        type="tel"
+                        id="profil-telefon"
+                        placeholder="5xxxxxxxxx"
+                        autocomplete="tel-national"
+                        inputmode="numeric"
+                        style="
+                            width: 100%;
+                            background: var(--surface-low);
+                            border: 1px solid var(--outline-variant);
+                            border-radius: 9px;
+                            padding: 11px;
+                            margin: 6px 0 15px;
+                            font-family: inherit;
+                        "
+                    />
+                    <button type="button" class="btn" data-action-call="profilKaydet()">Bilgileri Kaydet</button>
+                </div>
+                <div class="bolum" style="max-width: 560px">
+                    <div class="bolum-baslik"><h2>Şifre Değiştir</h2></div>
+                    <label for="profil-eski-sifre" style="font-size: 13px; font-weight: 600; color: var(--secondary)"
+                        >Mevcut Şifre</label
+                    >
+                    <input
+                        type="password"
+                        id="profil-eski-sifre"
+                        placeholder="Mevcut şifreniz"
+                        autocomplete="current-password"
+                        style="
+                            width: 100%;
+                            background: var(--surface-low);
+                            border: 1px solid var(--outline-variant);
+                            border-radius: 9px;
+                            padding: 11px;
+                            margin: 6px 0 15px;
+                            font-family: inherit;
+                        "
+                    />
+                    <label for="profil-yeni-sifre" style="font-size: 13px; font-weight: 600; color: var(--secondary)"
+                        >Yeni Şifre</label
+                    >
+                    <input
+                        type="password"
+                        id="profil-yeni-sifre"
+                        placeholder="Yeni şifreniz"
+                        autocomplete="new-password"
+                        style="
+                            width: 100%;
+                            background: var(--surface-low);
+                            border: 1px solid var(--outline-variant);
+                            border-radius: 9px;
+                            padding: 11px;
+                            margin: 6px 0 15px;
+                            font-family: inherit;
+                        "
+                    />
+                    <button type="button" class="btn" data-action-call="profilSifreDegistir()">Şifreyi Değiştir</button>
+                </div>
+            </div>
+            <div class="sayfa" id="sayfa-notlar">
+                <h1 class="sayfa-baslik">Notlarım</h1>
+                <p class="sayfa-aciklama">Kişisel notlarınız sadece size özeldir, kimse göremez.</p>
+                <div class="notlar-duzen">
+                    <div class="notlar-liste">
+                        <div class="notlar-liste-baslik">
+                            <h2>Notlarım</h2>
+                            <button type="button" data-action-call="notYeni()" title="Yeni Not">
+                                <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="notlar-liste-icerik" id="notlar-liste-icerik"></div>
+                    </div>
+                    <div class="notlar-editor" id="notlar-editor-wrap">
+                        <div class="notlar-bos" id="notlar-bos">
+                            <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                <path
+                                    d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"
+                                />
+                            </svg>
+                            <p style="font-weight: 600; color: var(--secondary); margin-bottom: 4px">Henüz not yok</p>
+                            <p style="font-size: 13px">Sol üstteki <b>+</b> butonu ile yeni not oluşturun.</p>
+                        </div>
+                        <div id="notlar-editor-icerik" style="display: none; flex-direction: column; flex: 1">
+                            <div class="editor-baslik-bar">
+                                <button
+                                    type="button"
+                                    class="editor-arac"
+                                    data-action-call="notFormat('bold')"
+                                    title="Kalın (Ctrl+B)"
+                                >
+                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                        <path
+                                            d="M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z"
+                                        />
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="editor-arac"
+                                    data-action-call="notFormat('italic')"
+                                    title="İtalik (Ctrl+I)"
+                                >
+                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                        <path d="M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z" />
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="editor-arac"
+                                    data-action-call="notFormat('underline')"
+                                    title="Altı çizili (Ctrl+U)"
+                                >
+                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                        <path
+                                            d="M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z"
+                                        />
+                                    </svg>
+                                </button>
+                                <div class="editor-ayrac"></div>
+                                <button
+                                    type="button"
+                                    class="editor-arac"
+                                    data-action-call="notFormat('formatBlock', 'H1')"
+                                    title="Büyük Başlık"
+                                >
+                                    H1
+                                </button>
+                                <button
+                                    type="button"
+                                    class="editor-arac"
+                                    data-action-call="notFormat('formatBlock', 'H2')"
+                                    title="Orta Başlık"
+                                >
+                                    H2
+                                </button>
+                                <button
+                                    type="button"
+                                    class="editor-arac"
+                                    data-action-call="notFormat('formatBlock', 'H3')"
+                                    title="Küçük Başlık"
+                                >
+                                    H3
+                                </button>
+                                <button
+                                    type="button"
+                                    class="editor-arac"
+                                    data-action-call="notFormat('formatBlock', 'P')"
+                                    title="Normal Metin"
+                                >
+                                    P
+                                </button>
+                                <div class="editor-ayrac"></div>
+                                <button
+                                    type="button"
+                                    class="editor-arac"
+                                    data-action-call="notFormat('insertUnorderedList')"
+                                    title="Madde Listesi"
+                                >
+                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                        <path
+                                            d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"
+                                        />
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="editor-arac"
+                                    data-action-call="notFormat('insertOrderedList')"
+                                    title="Numaralı Liste"
+                                >
+                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                                        <path
+                                            d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"
+                                        />
+                                    </svg>
+                                </button>
+                                <div class="editor-ayrac"></div>
+                                <button
+                                    type="button"
+                                    class="editor-arac"
+                                    data-action-call="notFormat('formatBlock', 'BLOCKQUOTE')"
+                                    title="Alıntı"
+                                >
+                                    ❝
+                                </button>
+                                <span class="editor-durum" id="not-kaydet-durum">Kayıtlı</span>
+                            </div>
+                            <input
+                                type="text"
+                                class="not-baslik-input"
+                                id="not-baslik"
+                                placeholder="Başlık..."
+                                data-enter-focus="not-icerik"
+                            />
+                            <div
+                                contenteditable="true"
+                                class="not-icerik-editor"
+                                id="not-icerik"
+                                data-placeholder="Notunuzu buraya yazın..."
+                            ></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </body>
+</html>

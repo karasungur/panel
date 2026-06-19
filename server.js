@@ -20,6 +20,8 @@ const { notFound, errorHandler } = require('./middleware/errors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const panelShellPath = path.join(__dirname, 'public', 'panel.html');
+const panelSayfalari = new Set(['harita', 'iller', 'gorevler', 'chat', 'kullanicilar', 'profil', 'notlar']);
 
 function trustProxyAyariniAl() {
     const deger = (process.env.TRUST_PROXY || '').trim();
@@ -70,8 +72,8 @@ app.use(
         contentSecurityPolicy: {
             directives: {
                 defaultSrc: ["'self'"],
-                scriptSrc: ["'self'", "'unsafe-inline'"],
-                scriptSrcAttr: ["'unsafe-inline'"],
+                scriptSrc: ["'self'"],
+                scriptSrcAttr: ["'none'"],
                 styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
                 fontSrc: ["'self'", 'https://fonts.gstatic.com'],
                 imgSrc: ["'self'", 'data:'],
@@ -109,6 +111,18 @@ app.use(
     })
 );
 app.use('/uploads', yukleRouter);
+
+function panelShellGonder(_req, res) {
+    res.sendFile(panelShellPath);
+}
+
+app.get('/panel.html', panelShellGonder);
+app.get(['/panel', '/panel/'], panelShellGonder);
+app.get('/panel/:page', (req, res, next) => {
+    if (!panelSayfalari.has(req.params.page)) return next();
+    return panelShellGonder(req, res);
+});
+
 app.use(express.static(path.join(__dirname, 'public'), { etag: true, maxAge: '1h' }));
 app.use('/api/yukle', yukleRouter);
 app.use(express.json({ limit: '8mb' }));

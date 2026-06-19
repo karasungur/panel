@@ -177,7 +177,7 @@ router.post('/', tokenDogrula, adminVeyaYardimci, (req, res) => {
         'gorev_yeni',
         bildirimBaslik,
         olusturanAd + ' size yeni bir görev atadı.',
-        '/panel.html#gorevler'
+        '/panel/gorevler'
     );
 
     res.status(201).json({ mesaj: 'Görev eklendi.', id: sonuc.lastInsertRowid });
@@ -280,7 +280,7 @@ router.put('/:id/durum', tokenDogrula, (req, res) => {
             'gorev_tamamlandi',
             tamamlandiBildirimi.baslik,
             tamamlandiBildirimi.icerik,
-            '/panel.html#gorevler'
+            '/panel/gorevler'
         );
     }
     if (tekrarBildirimi) {
@@ -289,7 +289,7 @@ router.put('/:id/durum', tokenDogrula, (req, res) => {
             'gorev_tekrar',
             tekrarBildirimi.baslik,
             tekrarBildirimi.icerik,
-            '/panel.html#gorevler'
+            '/panel/gorevler'
         );
     }
 

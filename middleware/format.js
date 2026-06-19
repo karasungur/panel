@@ -1,9 +1,25 @@
 // Veri formatlama yardimcilari
 
+/**
+ * @typedef {Record<string, unknown>} FormatKaydi
+ */
+
+/**
+ * @param {unknown} deger
+ * @returns {deger is FormatKaydi}
+ */
+function kayitNesnesiMi(deger) {
+    return !!deger && typeof deger === 'object';
+}
+
 // Ad-Soyad formatla: TDK'ya gore
 // "ahmet yılmaz" -> "Ahmet YILMAZ"
 // "AHMET ALİ YILMAZ" -> "Ahmet Ali YILMAZ"
 // "ahmet" -> "Ahmet" (tek kelime, soyad yok)
+/**
+ * @param {unknown} metin
+ * @returns {unknown}
+ */
 function adSoyadFormatla(metin) {
     if (!metin || typeof metin !== 'string') return metin;
     const temiz = metin.trim().replace(/\s+/g, ' ');
@@ -22,6 +38,10 @@ function adSoyadFormatla(metin) {
     return [...adlar, soyad].join(' ');
 }
 
+/**
+ * @param {string} kelime
+ * @returns {string}
+ */
 function basHarfBuyuk(kelime) {
     if (!kelime) return '';
     const ilk = kelime.charAt(0).toLocaleUpperCase('tr-TR');
@@ -35,6 +55,10 @@ function basHarfBuyuk(kelime) {
 // "905551234567" -> "0555-123-45-67"
 // "+905551234567" -> "0555-123-45-67"
 // "(555) 123 4567" -> "0555-123-45-67"
+/**
+ * @param {unknown} metin
+ * @returns {unknown}
+ */
 function telefonFormatla(metin) {
     if (!metin) return metin;
     const m = String(metin).trim();
@@ -66,12 +90,18 @@ function telefonFormatla(metin) {
 // "@ahmetyilmaz" -> "https://instagram.com/ahmetyilmaz"
 // "instagram.com/ahmetyilmaz" -> "https://instagram.com/ahmetyilmaz"
 // "https://instagram.com/ahmetyilmaz" -> aynisi
+/**
+ * @param {unknown} deger
+ * @param {string} platform
+ * @returns {unknown}
+ */
 function urlFormatla(deger, platform) {
     if (!deger) return deger;
     let m = String(deger).trim();
     if (!m) return '';
 
     // Tanimli platform domainleri
+    /** @type {Record<string, string>} */
     const domains = {
         instagram: 'instagram.com',
         twitter: 'twitter.com',
@@ -107,6 +137,10 @@ function urlFormatla(deger, platform) {
     return 'https://' + domain + '/' + m;
 }
 
+/**
+ * @param {unknown} metin
+ * @returns {unknown}
+ */
 function tcMaskele(metin) {
     if (!metin) return metin;
     const rakam = String(metin).replace(/\D/g, '');
@@ -114,6 +148,10 @@ function tcMaskele(metin) {
     return '*******' + rakam.slice(-4);
 }
 
+/**
+ * @param {unknown} metin
+ * @returns {unknown}
+ */
 function telefonMaskele(metin) {
     if (!metin) return metin;
     const formatli = telefonFormatla(metin);
@@ -122,6 +160,11 @@ function telefonMaskele(metin) {
     return '0' + rakam.slice(-10, -7) + '-***-**-' + rakam.slice(-2);
 }
 
+/**
+ * @param {string} alan
+ * @param {unknown} deger
+ * @returns {unknown}
+ */
 function hassasAlanMaskele(alan, deger) {
     if (deger === null || deger === undefined || deger === '') return deger;
     if (alan === 'baskan_tc') return tcMaskele(deger);
@@ -129,18 +172,28 @@ function hassasAlanMaskele(alan, deger) {
     return deger;
 }
 
+/**
+ * @template T
+ * @param {T} kayit
+ * @returns {T}
+ */
 function kayitMaskele(kayit) {
-    if (!kayit || typeof kayit !== 'object') return kayit;
-    const k = { ...kayit };
+    if (!kayitNesnesiMi(kayit)) return kayit;
+    const k = /** @type {FormatKaydi} */ ({ ...kayit });
     k.baskan_telefon = hassasAlanMaskele('baskan_telefon', k.baskan_telefon);
     k.baskan_tc = hassasAlanMaskele('baskan_tc', k.baskan_tc);
-    return k;
+    return /** @type {T} */ (k);
 }
 
 // Toplu formatla - bir kayit objesinin tum alanlarini formatla
+/**
+ * @template T
+ * @param {T} kayit
+ * @returns {T}
+ */
 function kayitFormatla(kayit) {
-    if (!kayit || typeof kayit !== 'object') return kayit;
-    const k = { ...kayit };
+    if (!kayitNesnesiMi(kayit)) return kayit;
+    const k = /** @type {FormatKaydi} */ ({ ...kayit });
 
     if (k.baskan_ad_soyad) k.baskan_ad_soyad = adSoyadFormatla(k.baskan_ad_soyad);
     if (k.baskan_telefon) k.baskan_telefon = telefonFormatla(k.baskan_telefon);
@@ -149,7 +202,7 @@ function kayitFormatla(kayit) {
     if (k.facebook_url) k.facebook_url = urlFormatla(k.facebook_url, 'facebook');
     if (k.tiktok_url) k.tiktok_url = urlFormatla(k.tiktok_url, 'tiktok');
 
-    return k;
+    return /** @type {T} */ (k);
 }
 
 module.exports = {

@@ -11,8 +11,21 @@ const SAHIP_KOLONLARI = ['owner_user_id', 'kullanici_id'];
 const BOYUT_KOLONLARI = ['size', 'boyut'];
 const TARIH_KOLONLARI = ['olusturulma_tarihi', 'created_at', 'created'];
 const DOSYA_ADI_PATTERN = /^[a-f0-9]{24}\.(jpg|jpeg|png|webp)$/i;
+
+/**
+ * @typedef {import('node:sqlite').SQLInputValue} SQLInputValue
+ * @typedef {import('node:sqlite').SQLOutputValue} SQLOutputValue
+ * @typedef {{ name: string }} KolonBilgisi
+ * @typedef {{ mime: string, boyut: number }} DosyaBilgisi
+ * @typedef {{ tablo: string, kolonlar: Set<string>, sahipKolonu: string, boyutKolonu: string, tarihKolonu: string | null, scopeKolonu: string | null, entityTypeKolonu: string | null, entityIdKolonu: string | null }} UploadMetadataSemasi
+ * @typedef {{ owner_user_id: SQLOutputValue, scope: SQLOutputValue, entity_type: SQLOutputValue, entity_id: SQLOutputValue }} UploadMetadataKaydi
+ * @typedef {{ scope: string, entityType: string, entityId: SQLInputValue }} UploadMetadataIliski
+ */
+
+/** @type {UploadMetadataSemasi | null} */
 let uploadMetadataSemasiCache = null;
 
+/** @type {Record<string, string>} */
 const mimeTipleri = {
     '.jpg': 'image/jpeg',
     '.jpeg': 'image/jpeg',
@@ -20,19 +33,31 @@ const mimeTipleri = {
     '.webp': 'image/webp'
 };
 
+/**
+ * @param {string} kimlik
+ * @returns {string}
+ */
 function sqlKimlik(kimlik) {
     return '"' + kimlik.replace(/"/g, '""') + '"';
 }
 
+/**
+ * @param {Set<string>} kolonlar
+ * @param {string[]} adaylar
+ * @returns {string | null}
+ */
 function ilkVarOlanKolon(kolonlar, adaylar) {
     return adaylar.find((kolon) => kolonlar.has(kolon)) || null;
 }
 
+/**
+ * @returns {UploadMetadataSemasi | null}
+ */
 function uploadMetadataSemasiAl() {
     if (uploadMetadataSemasiCache) return uploadMetadataSemasiCache;
 
     for (const tablo of UPLOAD_METADATA_TABLOLARI) {
-        const kolonBilgisi = db.prepare(`PRAGMA table_info(${sqlKimlik(tablo)})`).all();
+        const kolonBilgisi = /** @type {KolonBilgisi[]} */ (db.prepare(`PRAGMA table_info(${sqlKimlik(tablo)})`).all());
         if (!kolonBilgisi.length) continue;
 
         const kolonlar = new Set(kolonBilgisi.map((kolon) => kolon.name));
@@ -58,6 +83,10 @@ function uploadMetadataSemasiAl() {
     return null;
 }
 
+/**
+ * @param {unknown} deger
+ * @returns {string}
+ */
 function uploadDosyaAdiCikar(deger) {
     const ham = String(deger || '').trim();
     if (!ham) return '';
@@ -73,6 +102,10 @@ function uploadDosyaAdiCikar(deger) {
     return aday;
 }
 
+/**
+ * @param {string} dosyaAdi
+ * @returns {DosyaBilgisi}
+ */
 function dosyaBilgisiAl(dosyaAdi) {
     const uzanti = path.extname(dosyaAdi).toLowerCase();
     const mime = mimeTipleri[uzanti] || 'application/octet-stream';
@@ -85,6 +118,10 @@ function dosyaBilgisiAl(dosyaAdi) {
     return { mime, boyut: 0 };
 }
 
+/**
+ * @param {string} dosyaAdi
+ * @returns {UploadMetadataKaydi | null}
+ */
 function uploadMetadataKaydiAl(dosyaAdi) {
     const sema = uploadMetadataSemasiAl();
     if (!sema) return null;
@@ -96,17 +133,27 @@ function uploadMetadataKaydiAl(dosyaAdi) {
         sema.entityIdKolonu ? `${sqlKimlik(sema.entityIdKolonu)} AS entity_id` : 'NULL AS entity_id'
     ];
 
-    return db
-        .prepare(
-            `
+    const kayit = /** @type {UploadMetadataKaydi | undefined} */ (
+        db
+            .prepare(
+                `
             SELECT ${secilecekler.join(', ')}
             FROM ${sqlKimlik(sema.tablo)}
             WHERE dosya_adi = ?
         `
-        )
-        .get(dosyaAdi);
+            )
+            .get(dosyaAdi)
+    );
+    return kayit || null;
 }
 
+/**
+ * @param {string} dosyaAdi
+ * @param {number | null} kullaniciId
+ * @param {string} mime
+ * @param {number} boyut
+ * @returns {boolean}
+ */
 function uploadMetadataKaydet(dosyaAdi, kullaniciId, mime, boyut) {
     const sema = uploadMetadataSemasiAl();
     if (!sema) return false;
@@ -138,6 +185,11 @@ function uploadMetadataKaydet(dosyaAdi, kullaniciId, mime, boyut) {
     return true;
 }
 
+/**
+ * @param {unknown} url
+ * @param {UploadMetadataIliski} iliski
+ * @returns {boolean}
+ */
 function uploadMetadataIliskilendir(url, { scope, entityType, entityId }) {
     const dosyaAdi = uploadDosyaAdiCikar(url);
     if (!dosyaAdi) return false;

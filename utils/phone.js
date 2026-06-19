@@ -1,3 +1,11 @@
+/**
+ * @typedef {{ ad_soyad?: string | null, telefon?: unknown }} KullaniciGorunum
+ */
+
+/**
+ * @param {unknown} deger
+ * @returns {string | null}
+ */
 function telefonNormalizeEt(deger) {
     if (deger === null || deger === undefined) return null;
 
@@ -10,10 +18,18 @@ function telefonNormalizeEt(deger) {
     return '+90' + rakam;
 }
 
+/**
+ * @param {unknown} deger
+ * @returns {boolean}
+ */
 function telefonGecerliMi(deger) {
     return telefonNormalizeEt(deger) !== null;
 }
 
+/**
+ * @param {unknown} deger
+ * @returns {string}
+ */
 function telefonFormatla(deger) {
     const telefon = telefonNormalizeEt(deger);
     if (!telefon) return '';
@@ -22,19 +38,33 @@ function telefonFormatla(deger) {
     return '0' + rakam.slice(0, 3) + '-' + rakam.slice(3, 6) + '-' + rakam.slice(6, 8) + '-' + rakam.slice(8);
 }
 
+/**
+ * @param {unknown} deger
+ * @returns {string}
+ */
 function telefonSon10Hane(deger) {
     const telefon = telefonNormalizeEt(deger);
     return telefon ? telefon.slice(3) : '';
 }
 
+/**
+ * @param {unknown} deger
+ * @returns {string | null}
+ */
 function telefonHatasi(deger) {
     if (telefonGecerliMi(deger)) return null;
     return 'Telefon numarası +90 ile başlayan geçerli bir GSM numarası olmalıdır.';
 }
 
+/**
+ * @param {unknown} kullanici
+ * @param {string} [varsayilan]
+ * @returns {string}
+ */
 function kullaniciGorunenAd(kullanici, varsayilan = 'Kullanıcı') {
     if (!kullanici || typeof kullanici !== 'object') return varsayilan;
-    return kullanici.ad_soyad || telefonFormatla(kullanici.telefon) || varsayilan;
+    const gorunum = /** @type {KullaniciGorunum} */ (kullanici);
+    return gorunum.ad_soyad || telefonFormatla(gorunum.telefon) || varsayilan;
 }
 
 module.exports = {

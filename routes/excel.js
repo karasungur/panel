@@ -1,5 +1,6 @@
 const express = require('express');
 const crypto = require('node:crypto');
+const { Readable } = require('node:stream');
 const ExcelJS = require('exceljs');
 const db = require('../database/db');
 const { tokenDogrula } = require('../middleware/auth');
@@ -263,8 +264,7 @@ function hucreMetni(deger) {
 async function dosyaOku(base64) {
     const buf = base64VerisiniCikar(base64);
     const wb = new ExcelJS.Workbook();
-    // @ts-expect-error ExcelJS v4 types expect a pre-generic Node Buffer.
-    await wb.xlsx.load(buf);
+    await wb.xlsx.read(Readable.from(buf));
     const ws = wb.worksheets[0];
     if (!ws) return [];
     const rowCount = ws.rowCount || ws.actualRowCount || 0;

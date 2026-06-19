@@ -9,6 +9,18 @@ const jwt = require('jsonwebtoken');
 
 const PNG_1X1_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=';
 
+/**
+ * @typedef {{ after: (fn: () => Promise<void> | void) => void }} TestContext
+ * @typedef {{ cookie: string, kullanici?: unknown }} TestSession
+ * @typedef {{ id: number, telefon?: string, rol?: string, token_version?: number }} DbUser
+ * @typedef {{ sorun: string }} ExcelSorun
+ * @typedef {{ id: number, iller?: unknown[] }} KullaniciListeSatiri
+ * @typedef {{ id: number }} MesajSatiri
+ */
+
+/**
+ * @param {Record<string, string | undefined>} previous
+ */
 function restoreEnv(previous) {
     for (const [key, value] of Object.entries(previous)) {
         if (value === undefined) delete process.env[key];
@@ -16,6 +28,10 @@ function restoreEnv(previous) {
     }
 }
 
+/**
+ * @param {TestContext} t
+ * @param {Record<string, string | undefined>} [envOverrides]
+ */
 async function startTestServer(t, envOverrides = {}) {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'panel-security-'));
     const previousEnv = {
@@ -124,10 +140,35 @@ async function startTestServer(t, envOverrides = {}) {
     };
 }
 
+/**
+ * @param {TestSession} session
+ * @param {Record<string, string>} [extra]
+ */
 function cookieHeaders(session, extra = {}) {
     return { Cookie: session.cookie, ...extra };
 }
 
+/**
+ * @param {string} header
+ * @param {string} name
+ */
+function cspDirective(header, name) {
+    return (
+        header
+            .split(';')
+            .map((directive) => directive.trim())
+            .find((directive) => directive.startsWith(`${name} `))
+            ?.slice(name.length + 1) || ''
+    );
+}
+
+/**
+ * @param {string} telefon
+ * @param {string} sifre
+ * @param {string} [rol]
+ * @param {string} [adSoyad]
+ * @returns {DbUser}
+ */
 function testKullanicisiOlustur(telefon, sifre, rol = 'kullanici', adSoyad = telefon) {
     const db = require('../database/db');
     db.prepare('INSERT INTO kullanicilar (telefon, sifre, rol, ad_soyad) VALUES (?, ?, ?, ?)').run(
@@ -136,9 +177,14 @@ function testKullanicisiOlustur(telefon, sifre, rol = 'kullanici', adSoyad = tel
         rol,
         adSoyad
     );
-    return db.prepare('SELECT * FROM kullanicilar WHERE telefon = ?').get(telefon);
+    return /** @type {DbUser} */ (
+        /** @type {unknown} */ (db.prepare('SELECT * FROM kullanicilar WHERE telefon = ?').get(telefon))
+    );
 }
 
+/**
+ * @param {DbUser} kullanici
+ */
 function bearerTokenOlustur(kullanici) {
     return jwt.sign(
         {
@@ -152,6 +198,10 @@ function bearerTokenOlustur(kullanici) {
     );
 }
 
+/**
+ * @param {string} baseUrl
+ * @param {TestSession} session
+ */
 async function pngYukle(baseUrl, session) {
     return fetch(`${baseUrl}/api/yukle`, {
         method: 'POST',
@@ -162,6 +212,9 @@ async function pngYukle(baseUrl, session) {
     });
 }
 
+/**
+ * @param {Array<Array<string | number>>} satirlar
+ */
 async function workbookBase64(satirlar) {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('Veriler');
@@ -245,6 +298,77 @@ test('auth cors supports credentialed allowed origins', async (t) => {
     assert.equal(blocked.headers.get('access-control-allow-origin'), null);
     const blockedBody = await blocked.json();
     assert.equal(blockedBody.kod, 'CORS_NOT_ALLOWED');
+});
+
+test('panel shell routes serve valid pages and legacy panel html', async (t) => {
+    const ctx = await startTestServer(t);
+    const shellMarker = '<script type="module" src="/assets/panel/main.js"></script>';
+
+    for (const route of [
+        '/panel',
+        '/panel/',
+        '/panel/harita',
+        '/panel/iller',
+        '/panel/gorevler',
+        '/panel/chat',
+        '/panel/kullanicilar',
+        '/panel/profil',
+        '/panel/notlar'
+    ]) {
+        const response = await fetch(`${ctx.baseUrl}${route}`);
+        assert.equal(response.status, 200, route);
+        assert.match(response.headers.get('content-type') || '', /text\/html/);
+        assert.ok((await response.text()).includes(shellMarker), route);
+    }
+
+    const invalidPanelRoute = await fetch(`${ctx.baseUrl}/panel/gecersiz`);
+    assert.equal(invalidPanelRoute.status, 404);
+
+    for (const asset of [
+        { path: '/assets/panel/main.js', contentTypePattern: /(?:text|application)\/javascript/ },
+        { path: '/assets/panel/core/dom.js', contentTypePattern: /(?:text|application)\/javascript/ },
+        { path: '/assets/panel/features/map.js', contentTypePattern: /(?:text|application)\/javascript/ },
+        { path: '/assets/panel/styles.css', contentTypePattern: /text\/css/ }
+    ]) {
+        const response = await fetch(`${ctx.baseUrl}${asset.path}`);
+        assert.equal(response.status, 200, asset.path);
+        assert.match(response.headers.get('content-type') || '', asset.contentTypePattern, asset.path);
+        assert.notEqual((await response.text()).length, 0, asset.path);
+    }
+
+    for (const partial of [
+        { path: '/assets/panel/partials/pages.html', templateId: 'panel-pages-template' },
+        { path: '/assets/panel/partials/floating.html', templateId: 'panel-floating-template' },
+        { path: '/assets/panel/partials/modals.html', templateId: 'panel-modals-template' }
+    ]) {
+        const response = await fetch(`${ctx.baseUrl}${partial.path}`);
+        assert.equal(response.status, 200, partial.path);
+        assert.match(response.headers.get('content-type') || '', /text\/html/, partial.path);
+        assert.ok((await response.text()).includes(`id="${partial.templateId}"`), partial.path);
+    }
+
+    const legacyPanel = await fetch(`${ctx.baseUrl}/panel.html`, { redirect: 'manual' });
+    assert.equal(legacyPanel.status, 200);
+    assert.equal(legacyPanel.headers.get('location'), null);
+    assert.match(legacyPanel.headers.get('content-type') || '', /text\/html/);
+    assert.ok((await legacyPanel.text()).includes(shellMarker), '/panel.html');
+});
+
+test('content security policy disallows inline scripts but keeps inline styles', async (t) => {
+    const ctx = await startTestServer(t);
+    const response = await fetch(`${ctx.baseUrl}/panel/harita`);
+    assert.equal(response.status, 200);
+
+    const csp = response.headers.get('content-security-policy') || '';
+    const scriptSrc = cspDirective(csp, 'script-src');
+    const scriptSrcAttr = cspDirective(csp, 'script-src-attr');
+    const styleSrc = cspDirective(csp, 'style-src');
+
+    assert.equal(scriptSrc, "'self'");
+    assert.equal(scriptSrcAttr, "'none'");
+    assert.doesNotMatch(scriptSrc, /'unsafe-inline'/);
+    assert.doesNotMatch(scriptSrcAttr, /'unsafe-inline'/);
+    assert.match(styleSrc, /'unsafe-inline'/);
 });
 
 test('authorization bearer takes precedence over cookie tokens', async (t) => {
@@ -454,7 +578,11 @@ test('security integration flows', async (t) => {
     });
     assert.equal(legacyProfilUpload.status, 200);
 
-    const adminKullanici = db.prepare('SELECT * FROM kullanicilar WHERE telefon = ?').get(process.env.ADMIN_TELEFON);
+    const adminKullanici = /** @type {DbUser} */ (
+        /** @type {unknown} */ (
+            db.prepare('SELECT * FROM kullanicilar WHERE telefon = ?').get(process.env.ADMIN_TELEFON)
+        )
+    );
     const queryTokenUpload = await fetch(
         `${ctx.baseUrl}${uploadBody.url}?token=${encodeURIComponent(bearerTokenOlustur(adminKullanici))}`
     );
@@ -576,7 +704,9 @@ test('security integration flows', async (t) => {
         body: JSON.stringify({ dosya: guvenlikBase64, tip: 'il' })
     });
     assert.equal(guvenlikOnizleme.status, 200);
-    const guvenlikBody = await guvenlikOnizleme.json();
+    const guvenlikBody = /** @type {{ uygulanabilir: boolean, sorunlar: ExcelSorun[] }} */ (
+        await guvenlikOnizleme.json()
+    );
     assert.equal(guvenlikBody.uygulanabilir, false);
     assert.ok(guvenlikBody.sorunlar.some((s) => /TC Kimlik No geçersiz/i.test(s.sorun)));
     assert.ok(guvenlikBody.sorunlar.some((s) => /Telefon numarası geçersiz/i.test(s.sorun)));
@@ -649,7 +779,7 @@ test('security integration flows', async (t) => {
         headers: cookieHeaders(adminSession)
     });
     assert.equal(usersList.status, 200);
-    const usersListBody = await usersList.json();
+    const usersListBody = /** @type {KullaniciListeSatiri[]} */ (await usersList.json());
     assert.equal(Array.isArray(usersListBody.find((k) => k.id === routeUserId)?.iller), true);
 
     const readNotificationId = db
@@ -704,6 +834,13 @@ test('security integration flows', async (t) => {
     });
     assert.equal(firstMessage.status, 201);
     const firstMessageId = (await firstMessage.json()).id;
+    const firstMessageNotification = db
+        .prepare(
+            "SELECT tip, link FROM bildirimler WHERE kullanici_id = ? AND tip = 'mesaj_yeni' ORDER BY id DESC LIMIT 1"
+        )
+        .get(routeUserId);
+    assert.equal(firstMessageNotification.tip, 'mesaj_yeni');
+    assert.equal(firstMessageNotification.link, `/panel/chat#chat-balon-${adminKullanici.id}`);
     const deleteForSender = await fetch(`${ctx.baseUrl}/api/ozel-mesaj/mesaj/${firstMessageId}`, {
         method: 'DELETE',
         headers: cookieHeaders(adminSession)
@@ -719,8 +856,9 @@ test('security integration flows', async (t) => {
         headers: cookieHeaders(adminSession)
     });
     assert.equal(adminThreadAfterDelete.status, 200);
+    const adminThreadAfterDeleteBody = /** @type {MesajSatiri[]} */ (await adminThreadAfterDelete.json());
     assert.equal(
-        (await adminThreadAfterDelete.json()).some((m) => m.id === firstMessageId),
+        adminThreadAfterDeleteBody.some((m) => m.id === firstMessageId),
         false
     );
 
@@ -728,8 +866,9 @@ test('security integration flows', async (t) => {
         headers: cookieHeaders(routeUserSession)
     });
     assert.equal(userThreadAfterSenderDelete.status, 200);
+    const userThreadAfterSenderDeleteBody = /** @type {MesajSatiri[]} */ (await userThreadAfterSenderDelete.json());
     assert.equal(
-        (await userThreadAfterSenderDelete.json()).some((m) => m.id === firstMessageId),
+        userThreadAfterSenderDeleteBody.some((m) => m.id === firstMessageId),
         true
     );
 
@@ -756,8 +895,11 @@ test('security integration flows', async (t) => {
         headers: cookieHeaders(routeUserSession)
     });
     assert.equal(userThreadAfterRecipientDelete.status, 200);
+    const userThreadAfterRecipientDeleteBody = /** @type {MesajSatiri[]} */ (
+        await userThreadAfterRecipientDelete.json()
+    );
     assert.equal(
-        (await userThreadAfterRecipientDelete.json()).some((m) => m.id === secondMessageId),
+        userThreadAfterRecipientDeleteBody.some((m) => m.id === secondMessageId),
         false
     );
 
@@ -765,8 +907,11 @@ test('security integration flows', async (t) => {
         headers: cookieHeaders(adminSession)
     });
     assert.equal(adminThreadAfterRecipientDelete.status, 200);
+    const adminThreadAfterRecipientDeleteBody = /** @type {MesajSatiri[]} */ (
+        await adminThreadAfterRecipientDelete.json()
+    );
     assert.equal(
-        (await adminThreadAfterRecipientDelete.json()).some((m) => m.id === secondMessageId),
+        adminThreadAfterRecipientDeleteBody.some((m) => m.id === secondMessageId),
         true
     );
 

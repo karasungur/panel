@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="tr">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Panel Modalları</title>
+    </head>
+    <body>
+        <template id="panel-modals-template">
+            <div class="modal-bg" id="il-modal">
+                <div class="modal">
+                    <h3 id="il-modal-baslik">İl Düzenle</h3>
+                    <input type="hidden" id="il-id" />
+                    <div class="grup">Tanıtım ve Medya Başkanı</div>
+                    <img alt="" class="foto-oniz" id="il-foto-oniz" />
+                    <label for="il-foto-input">Fotoğraf</label
+                    ><input
+                        type="file"
+                        id="il-foto-input"
+                        accept="image/*"
+                        data-change-call="baskanFotoSec(event, 'il')"
+                    />
+                    <input type="hidden" id="il-baskan-foto" />
+                    <label for="il-baskan-ad">Ad Soyad</label
+                    ><input type="text" id="il-baskan-ad" placeholder="Ad Soyad" />
+                    <label for="il-baskan-telefon">Telefon</label
+                    ><input type="text" id="il-baskan-telefon" placeholder="05XX XXX XX XX" />
+                    <label for="il-baskan-tc">TC Kimlik No</label
+                    ><input type="text" id="il-baskan-tc" placeholder="11 haneli" maxlength="11" />
+                    <div class="grup">Sosyal Medya</div>
+                    <label for="il-instagram">Instagram</label
+                    ><input type="text" id="il-instagram" placeholder="https://instagram.com/..." />
+                    <label for="il-twitter">Twitter (X)</label
+                    ><input type="text" id="il-twitter" placeholder="https://x.com/..." />
+                    <label for="il-facebook">Facebook</label
+                    ><input type="text" id="il-facebook" placeholder="https://facebook.com/..." />
+                    <label for="il-tiktok">TikTok</label
+                    ><input type="text" id="il-tiktok" placeholder="https://tiktok.com/..." />
+                    <div class="modal-btnlar">
+                        <button type="button" class="kaydet" data-action-call="ilKaydet()">Kaydet</button
+                        ><button type="button" class="iptal" data-action-call="modalKapat('il-modal')">İptal</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-bg" id="ilce-modal">
+                <div class="modal">
+                    <h3 id="ilce-modal-baslik">İlçe Ekle</h3>
+                    <input type="hidden" id="ilce-id" /><input type="hidden" id="ilce-il-id" />
+                    <label for="ilce-adi">İlçe Adı *</label><input type="text" id="ilce-adi" placeholder="İlçe adı" />
+                    <div class="grup">Tanıtım ve Medya Başkanı</div>
+                    <img alt="" class="foto-oniz" id="ilce-foto-oniz" />
+                    <label for="ilce-foto-input">Fotoğraf</label
+                    ><input
+                        type="file"
+                        id="ilce-foto-input"
+                        accept="image/*"
+                        data-change-call="baskanFotoSec(event, 'ilce')"
+                    />
+                    <input type="hidden" id="ilce-baskan-foto" />
+                    <label for="ilce-baskan-ad">Ad Soyad</label
+                    ><input type="text" id="ilce-baskan-ad" placeholder="Ad Soyad" />
+                    <label for="ilce-baskan-telefon">Telefon</label
+                    ><input type="text" id="ilce-baskan-telefon" placeholder="05XX XXX XX XX" />
+                    <label for="ilce-baskan-tc">TC Kimlik No</label
+                    ><input type="text" id="ilce-baskan-tc" placeholder="11 haneli" maxlength="11" />
+                    <div class="grup">Sosyal Medya</div>
+                    <label for="ilce-instagram">Instagram</label
+                    ><input type="text" id="ilce-instagram" placeholder="https://instagram.com/..." />
+                    <label for="ilce-twitter">Twitter (X)</label
+                    ><input type="text" id="ilce-twitter" placeholder="https://x.com/..." />
+                    <label for="ilce-facebook">Facebook</label
+                    ><input type="text" id="ilce-facebook" placeholder="https://facebook.com/..." />
+                    <label for="ilce-tiktok">TikTok</label
+                    ><input type="text" id="ilce-tiktok" placeholder="https://tiktok.com/..." />
+                    <div class="modal-btnlar">
+                        <button type="button" class="kaydet" data-action-call="ilceKaydet()">Kaydet</button
+                        ><button type="button" class="iptal" data-action-call="modalKapat('ilce-modal')">İptal</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-bg" id="kullanici-modal">
+                <div class="modal">
+                    <h3 id="kullanici-modal-baslik">Kullanıcı Ekle</h3>
+                    <input type="hidden" id="kullanici-id" />
+                    <div id="k-temel">
+                        <label for="yeni-ad-soyad">Ad Soyad</label
+                        ><input type="text" id="yeni-ad-soyad" placeholder="Ad Soyad" />
+                        <label for="yeni-telefon">Telefon *</label
+                        ><input
+                            type="tel"
+                            id="yeni-telefon"
+                            placeholder="5xxxxxxxxx"
+                            autocomplete="tel-national"
+                            inputmode="numeric"
+                        />
+                        <label id="sifre-label" for="yeni-sifre">Şifre *</label
+                        ><input
+                            type="password"
+                            id="yeni-sifre"
+                            placeholder="Şifre (düzenlemede boş bırakırsanız değişmez)"
+                            autocomplete="new-password"
+                        />
+                        <label for="yeni-gorev">Görev</label
+                        ><input type="text" id="yeni-gorev" placeholder="Örn: İl Sorumlusu" />
+                        <div id="rol-grubu" style="display: none">
+                            <label for="yeni-rol">Yetki Düzeyi</label>
+                            <select
+                                id="yeni-rol"
+                                style="
+                                    width: 100%;
+                                    background: var(--surface-low);
+                                    border: 1px solid var(--outline-variant);
+                                    border-radius: 9px;
+                                    padding: 11px;
+                                    font-size: 14px;
+                                    font-family: inherit;
+                                    margin-bottom: 15px;
+                                "
+                            >
+                                <option value="kullanici">Normal Kullanıcı (sadece atanan illere erişir)</option>
+                                <option value="yardimci">
+                                    Yönetici Yardımcısı (admin gibi yetkili, admin'e dokunamaz)
+                                </option>
+                            </select>
+                        </div>
+                        <div
+                            id="renk-secim-label"
+                            style="
+                                display: block;
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: var(--secondary);
+                                margin-bottom: 6px;
+                            "
+                        >
+                            Renk (etiket)
+                        </div>
+                        <fieldset
+                            class="renk-secim"
+                            id="renk-secim"
+                            aria-labelledby="renk-secim-label"
+                            style="border: 0; padding: 0; margin: 0 0 15px; min-inline-size: 0"
+                        ></fieldset>
+                    </div>
+                    <div class="grup">Sorumlu Olacağı İller</div>
+                    <div class="il-secim" id="il-secim-kutu"></div>
+                    <div class="modal-btnlar">
+                        <button type="button" class="kaydet" data-action-call="kullaniciKaydet()">Kaydet</button
+                        ><button type="button" class="iptal" data-action-call="modalKapat('kullanici-modal')">
+                            İptal
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-bg" id="ksifre-modal">
+                <div class="modal">
+                    <h3>Şifre Değiştir</h3>
+                    <input type="hidden" id="ksifre-id" />
+                    <label for="ksifre-yeni">Yeni Şifre</label
+                    ><input type="password" id="ksifre-yeni" placeholder="Yeni şifre" autocomplete="new-password" />
+                    <div class="modal-btnlar">
+                        <button type="button" class="kaydet" data-action-call="kullaniciSifreKaydet()">Kaydet</button
+                        ><button type="button" class="iptal" data-action-call="modalKapat('ksifre-modal')">
+                            İptal
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-bg" id="gorev-modal">
+                <div class="modal">
+                    <h3>Görev Ata</h3>
+                    <label for="gorev-kullanici">Kullanıcı</label
+                    ><select id="gorev-kullanici"></select>
+                    <label for="gorev-baslik">Başlık *</label
+                    ><input type="text" id="gorev-baslik" placeholder="Görev başlığı" />
+                    <label for="gorev-aciklama-input">Açıklama</label
+                    ><textarea id="gorev-aciklama-input" rows="3" placeholder="Detaylar"></textarea>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+                        <div>
+                            <label for="gorev-oncelik">Öncelik</label>
+                            <select
+                                id="gorev-oncelik"
+                                style="
+                                    width: 100%;
+                                    background: var(--surface-low);
+                                    border: 1px solid var(--outline-variant);
+                                    border-radius: 9px;
+                                    padding: 11px;
+                                    font-size: 14px;
+                                    font-family: inherit;
+                                    margin-bottom: 15px;
+                                "
+                            >
+                                <option value="dusuk">Düşük</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="acil">🚨 Acil</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="gorev-kategori">Kategori</label>
+                            <select
+                                id="gorev-kategori"
+                                style="
+                                    width: 100%;
+                                    background: var(--surface-low);
+                                    border: 1px solid var(--outline-variant);
+                                    border-radius: 9px;
+                                    padding: 11px;
+                                    font-size: 14px;
+                                    font-family: inherit;
+                                    margin-bottom: 15px;
+                                "
+                            >
+                                <option value="sosyal_medya">Sosyal Medya</option>
+                                <option value="organizasyon">Organizasyon</option>
+                                <option value="raporlama">Raporlama</option>
+                                <option value="iletisim">İletişim</option>
+                                <option value="diger" selected>Diğer</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
+                        <div>
+                            <label for="gorev-son-tarih">Son Tarih</label>
+                            <input type="datetime-local" id="gorev-son-tarih" />
+                        </div>
+                        <div>
+                            <label for="gorev-tekrar">Tekrar</label>
+                            <select
+                                id="gorev-tekrar"
+                                style="
+                                    width: 100%;
+                                    background: var(--surface-low);
+                                    border: 1px solid var(--outline-variant);
+                                    border-radius: 9px;
+                                    padding: 11px;
+                                    font-size: 14px;
+                                    font-family: inherit;
+                                    margin-bottom: 15px;
+                                "
+                            >
+                                <option value="tek" selected>Tek seferlik</option>
+                                <option value="haftalik">Her hafta tekrarlı</option>
+                                <option value="aylik">Her ay tekrarlı</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="modal-btnlar">
+                        <button type="button" class="kaydet" data-action-call="gorevKaydet()">Ata</button
+                        ><button type="button" class="iptal" data-action-call="modalKapat('gorev-modal')">İptal</button>
+                    </div>
+                </div>
+            </div>
+            <!-- TOPLU IL BASKANLARI MODAL -->
+            <div class="modal-bg" id="toplu-il-modal">
+                <div class="modal genis">
+                    <h3>Toplu İl Başkanları Düzenle</h3>
+                    <p class="toplu-aciklama">
+                        Birden çok ilin Tanıtım ve Medya Başkanı bilgilerini tek tabloda düzenleyebilirsiniz. Boş
+                        bıraktığınız hücreler atlanır (mevcut bilgi korunur).
+                    </p>
+                    <div class="toplu-tablo-wrap">
+                        <table class="toplu-tablo" id="toplu-il-tablo">
+                            <thead>
+                                <tr>
+                                    <th>İl</th>
+                                    <th>Başkan Ad Soyad</th>
+                                    <th>Telefon</th>
+                                    <th>TC</th>
+                                    <th>Foto</th>
+                                    <th>Instagram</th>
+                                    <th>Twitter (X)</th>
+                                    <th>Facebook</th>
+                                    <th>TikTok</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="modal-btnlar">
+                        <button type="button" class="kaydet" data-action-call="topluIlKaydet()">Tümünü Kaydet</button
+                        ><button type="button" class="iptal" data-action-call="modalKapat('toplu-il-modal')">
+                            Kapat
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOPLU ILCE BASKANLARI MODAL -->
+            <div class="modal-bg" id="toplu-ilce-modal">
+                <div class="modal genis">
+                    <h3 id="toplu-ilce-baslik">Toplu İlçe Başkanları Düzenle</h3>
+                    <p class="toplu-aciklama">
+                        Bu ilin tüm ilçeleri için başkan bilgilerini tek tabloda düzenleyebilirsiniz. Boş bıraktığınız
+                        hücreler atlanır (mevcut bilgi korunur). En alttaki boş satıra <b>yeni ilçe adı</b> yazarsanız o
+                        ilçe de eklenir.
+                    </p>
+                    <input type="hidden" id="toplu-ilce-il-id" />
+                    <div class="toplu-tablo-wrap">
+                        <table class="toplu-tablo" id="toplu-ilce-tablo">
+                            <thead>
+                                <tr>
+                                    <th>İlçe</th>
+                                    <th>Başkan Ad Soyad</th>
+                                    <th>Telefon</th>
+                                    <th>TC</th>
+                                    <th>Foto</th>
+                                    <th>Instagram</th>
+                                    <th>Twitter (X)</th>
+                                    <th>Facebook</th>
+                                    <th>TikTok</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="modal-btnlar">
+                        <button type="button" class="kaydet" data-action-call="topluIlceKaydet()">Tümünü Kaydet</button
+                        ><button type="button" class="iptal" data-action-call="modalKapat('toplu-ilce-modal')">
+                            Kapat
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-bg" id="excel-modal">
+                <div class="modal">
+                    <h3 id="excel-modal-baslik">Excel Yükle</h3>
+                    <p style="font-size: 13px; color: var(--secondary); margin-bottom: 14px">
+                        Örnek şablonu indirin, başlıkları değiştirmeden doldurun ve .xlsx dosyasını yükleyin.
+                        <a
+                            href="/api/excel/sablon?tip=il"
+                            id="sablon-link"
+                            style="color: var(--primary-container); font-weight: 600"
+                            >Örnek şablon indir</a
+                        >
+                    </p>
+                    <input type="file" id="excel-dosya" accept=".xlsx" data-change-call="excelOnizle()" />
+                    <div id="excel-sonuc" style="margin-top: 16px"></div>
+                    <div class="modal-btnlar">
+                        <button
+                            type="button"
+                            class="kaydet"
+                            id="excel-uygula-btn"
+                            data-action-call="excelUygula()"
+                            style="display: none"
+                        >
+                            İçe Aktar</button
+                        ><button type="button" class="iptal" data-action-call="modalKapat('excel-modal')">Kapat</button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </body>
+</html>

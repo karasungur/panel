@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="tr">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Panel Yüzen Bileşenler</title>
+    </head>
+    <body>
+        <template id="panel-floating-template">
+            <div class="harita-bilgi" id="harita-bilgi"></div>
+            <!-- FACEBOOK TARZI CHAT BALONU -->
+            <div class="chat-balon-wrap" id="chat-balon-wrap">
+                <!-- Acilmis sohbet pencereleri buraya eklenecek -->
+                <div id="acik-sohbetler" style="display: flex; align-items: flex-end; gap: 10px"></div>
+                <div style="position: relative">
+                    <button type="button" class="chat-acici" data-action-call="chatAciciTogla()" title="Mesajlar">
+                        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24">
+                            <path
+                                d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"
+                            />
+                        </svg>
+                        <span class="chat-acici-rozet" id="chat-acici-rozet" style="display: none">0</span>
+                    </button>
+                    <div class="chat-acici-panel" id="chat-acici-panel">
+                        <div class="chat-acici-baslik">
+                            <span>💬 Mesajlar</span>
+                            <button type="button" data-action-call="chatAciciKapat()" title="Kapat">✕</button>
+                        </div>
+                        <div class="chat-acici-arama">
+                            <input
+                                type="text"
+                                id="chat-arama-input"
+                                placeholder="Kişi ara..."
+                                data-input-call="chatKisilerFiltrele()"
+                            />
+                        </div>
+                        <div class="chat-acici-liste" id="chat-acici-liste">
+                            <p style="text-align: center; color: var(--outline); padding: 20px; font-size: 13px">
+                                Yükleniyor...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="uyari-toast" id="toast"></div>
+        </template>
+    </body>
+</html>

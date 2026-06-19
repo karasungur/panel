@@ -1,4 +1,10 @@
 class ApiError extends Error {
+    /**
+     * @param {number} status
+     * @param {string} kod
+     * @param {string} mesaj
+     * @param {unknown} [detaylar]
+     */
     constructor(status, kod, mesaj, detaylar) {
         super(mesaj);
         this.status = status;
@@ -7,14 +13,32 @@ class ApiError extends Error {
     }
 }
 
+/**
+ * @param {number} status
+ * @param {string} kod
+ * @param {string} mesaj
+ * @param {unknown} [detaylar]
+ * @returns {ApiError}
+ */
 function hata(status, kod, mesaj, detaylar) {
     return new ApiError(status, kod, mesaj, detaylar);
 }
 
+/**
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
 function notFound(req, res) {
     res.status(404).json({ hata: 'Endpoint bulunamadi.', kod: 'NOT_FOUND' });
 }
 
+/**
+ * @param {Error} err
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ * @returns {void}
+ */
 function errorHandler(err, req, res, next) {
     if (res.headersSent) return next(err);
 
@@ -44,6 +68,7 @@ function errorHandler(err, req, res, next) {
         });
     }
 
+    /** @type {{ hata: string, kod: string, detaylar?: unknown }} */
     const cevap = { hata: mesaj, kod };
     if (detaylar) cevap.detaylar = detaylar;
     res.status(status).json(cevap);

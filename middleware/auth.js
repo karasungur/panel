@@ -1,6 +1,13 @@
 const jwt = require('jsonwebtoken');
 const { jwtSecretHatasi } = require('../utils/security');
 
+/**
+ * @typedef {import('express').Request} Request
+ * @typedef {import('express').Response} Response
+ * @typedef {import('express').NextFunction} NextFunction
+ * @typedef {{ id: number, telefon: string, rol: string, ad_soyad: string | null, gorev_adi: string | null, renk: string | null, profil_foto: string | null, token_version: number }} KullaniciSatiri
+ */
+
 const VARSAYILAN_JWT_SECRET = 'varsayilan-gizli-anahtar-degistirin';
 const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'panel_oturum';
 
@@ -37,6 +44,10 @@ const kullaniciSorgu = db.prepare(`
     WHERE id = ?
 `);
 
+/**
+ * @param {Request} req
+ * @returns {string | null}
+ */
 function bearerTokenAl(req) {
     const authHeader = req.headers['authorization'];
     if (!authHeader) return null;
@@ -47,6 +58,10 @@ function bearerTokenAl(req) {
     return token;
 }
 
+/**
+ * @param {Request} req
+ * @returns {string | null}
+ */
 function cookieTokenAl(req) {
     const cookieHeader = req.headers.cookie;
     if (!cookieHeader) return null;
@@ -68,11 +83,21 @@ function cookieTokenAl(req) {
     return null;
 }
 
+/**
+ * @param {Request} req
+ * @returns {string | null}
+ */
 function istekTokeniAl(req) {
     return bearerTokenAl(req) || cookieTokenAl(req);
 }
 
 // Her istekte JWT token'i dogrular
+/**
+ * @param {Request} req
+ * @param {Response} res
+ * @param {NextFunction} next
+ * @returns {void | Response}
+ */
 function tokenDogrula(req, res, next) {
     const token = istekTokeniAl(req);
     if (!token) return res.status(401).json({ hata: 'Yetkilendirme gerekli. Lutfen giris yapin.' });
@@ -96,7 +121,7 @@ function tokenDogrula(req, res, next) {
             return res.status(401).json({ hata: 'Oturum gecersiz. Lutfen yeniden giris yapin.' });
         }
 
-        const kullanici = kullaniciSorgu.get(kullaniciId);
+        const kullanici = /** @type {KullaniciSatiri | undefined} */ (kullaniciSorgu.get(kullaniciId));
         if (!kullanici) {
             return res.status(401).json({ hata: 'Oturum kullanicisi bulunamadi.' });
         }
@@ -123,6 +148,12 @@ function tokenDogrula(req, res, next) {
 }
 
 // Sadece admin
+/**
+ * @param {Request} req
+ * @param {Response} res
+ * @param {NextFunction} next
+ * @returns {void | Response}
+ */
 function sadeceAdmin(req, res, next) {
     if (req.kullanici.rol !== 'admin') {
         return res.status(403).json({ hata: 'Bu islem icin yonetici yetkisi gerekli.' });
@@ -131,6 +162,12 @@ function sadeceAdmin(req, res, next) {
 }
 
 // Admin VEYA yardimci
+/**
+ * @param {Request} req
+ * @param {Response} res
+ * @param {NextFunction} next
+ * @returns {void | Response}
+ */
 function adminVeyaYardimci(req, res, next) {
     if (req.kullanici.rol !== 'admin' && req.kullanici.rol !== 'yardimci') {
         return res.status(403).json({ hata: 'Bu islem icin yetkiniz yok.' });

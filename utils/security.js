@@ -26,14 +26,31 @@ const ZAYIF_JWT_SECRETLERI = new Set([
     'changeme'
 ]);
 
+/**
+ * @typedef {{ admin?: boolean, kimlik?: unknown, telefon?: unknown, kullaniciAdi?: unknown }} ParolaSecenekleri
+ */
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
 function metin(value) {
     return String(value || '').trim();
 }
 
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
 function placeholderMi(value) {
     return !metin(value) || PLACEHOLDER_PATTERN.test(metin(value));
 }
 
+/**
+ * @param {unknown} parola
+ * @param {ParolaSecenekleri} [options]
+ * @returns {string | null}
+ */
 function parolaHatasi(parola, options = {}) {
     const password = metin(parola);
     const minLength = options.admin ? MIN_ADMIN_PAROLA_UZUNLUK : MIN_PAROLA_UZUNLUK;
@@ -54,6 +71,10 @@ function parolaHatasi(parola, options = {}) {
     return null;
 }
 
+/**
+ * @param {unknown} secret
+ * @returns {string | null}
+ */
 function jwtSecretHatasi(secret) {
     const value = metin(secret);
     const normalized = value.toLowerCase();
@@ -66,6 +87,10 @@ function jwtSecretHatasi(secret) {
     return null;
 }
 
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
 function productionTrustProxyHatasi(value) {
     return metin(value).toLowerCase() === 'true'
         ? 'Production için TRUST_PROXY=true kullanmayın; sayısal hop değeri kullanın.'

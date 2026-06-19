@@ -28,6 +28,11 @@ const panelDb = /** @type {PanelDatabase} */ (db);
 
 panelDb.dataDir = dataDir;
 panelDb.dbPath = dbPath;
+/**
+ * @template T
+ * @param {() => T} fn
+ * @returns {T}
+ */
 panelDb.withTransaction = function withTransaction(fn) {
     panelDb.exec('BEGIN IMMEDIATE');
     try {
