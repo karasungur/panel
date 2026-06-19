@@ -15,11 +15,7 @@ const DOCUMENTED_ENV_KEYS = [
     'BACKUP_DIR',
     'ADMIN_KULLANICI_ADI',
     'ADMIN_SIFRE',
-    'JWT_SECRET',
-    'GEMINI_AI_ENABLED',
-    'GEMINI_API_KEY',
-    'GEMINI_MODEL',
-    'GEMINI_TIMEOUT_MS'
+    'JWT_SECRET'
 ];
 const PRODUCTION_REQUIRED = ['PORT', 'DATA_DIR', 'BACKUP_DIR', 'ADMIN_KULLANICI_ADI', 'ADMIN_SIFRE', 'JWT_SECRET'];
 const PLACEHOLDER_PATTERN = /(admin123|gizli|degistir|change-me|example|varsayilan)/i;

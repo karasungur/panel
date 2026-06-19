@@ -3288,30 +3288,13 @@
             <div class="modal">
                 <h3 id="excel-modal-baslik">Excel Yükle</h3>
                 <p style="font-size: 13px; color: var(--secondary); margin-bottom: 14px">
-                    Excel dosyanızı seçin. Sistem sütunları otomatik tanır.
+                    Örnek şablonu indirin, başlıkları değiştirmeden doldurun ve .xlsx dosyasını yükleyin.
                     <a href="#" id="sablon-link" style="color: var(--primary-container); font-weight: 600"
                         >Örnek şablon indir</a
                     >
                 </p>
-                <input type="file" id="excel-dosya" accept=".xlsx,.xls,.csv" onchange="excelOnizle()" />
+                <input type="file" id="excel-dosya" accept=".xlsx" onchange="excelOnizle()" />
                 <div id="excel-sonuc" style="margin-top: 16px"></div>
-                <div id="excel-ai-bolum" style="display: none; margin-top: 10px; text-align: center">
-                    <button
-                        onclick="excelAiOnizle()"
-                        style="
-                            background: transparent;
-                            color: var(--primary);
-                            border: none;
-                            font-family: inherit;
-                            font-size: 12px;
-                            cursor: pointer;
-                            text-decoration: underline;
-                            padding: 4px 8px;
-                        "
-                    >
-                        Sonuçlar yetersiz mi? Yapay zeka ile yeniden algıla
-                    </button>
-                </div>
                 <div class="modal-btnlar">
                     <button class="kaydet" id="excel-uygula-btn" onclick="excelUygula()" style="display: none">
                         İçe Aktar</button
@@ -4557,30 +4540,27 @@
             async function excelOnizle() {
                 const f = document.getElementById('excel-dosya').files[0];
                 if (!f) return;
-                document.getElementById('excel-ai-bolum').style.display = 'none';
                 document.getElementById('excel-uygula-btn').style.display = 'none';
+                if (!f.name.toLowerCase().endsWith('.xlsx')) {
+                    document.getElementById('excel-sonuc').innerHTML =
+                        '<p style="color:var(--error)">Lütfen indirilen .xlsx şablonunu yükleyin.</p>';
+                    return;
+                }
                 document.getElementById('excel-sonuc').innerHTML =
                     '<p style="color:var(--secondary)">Analiz ediliyor...</p>';
                 const r = new FileReader();
                 r.onload = async () => {
-                    window._excelDosyaCache = r.result; // AI icin sakla
                     const s = await apicagir('/api/excel/onizle', 'POST', { dosya: r.result, tip: excelTip });
                     if (s.hata) {
                         document.getElementById('excel-sonuc').innerHTML =
                             '<p style="color:var(--error)">' + esc(s.hata) + '</p>';
-                        document.getElementById('excel-ai-bolum').style.display = 'block';
                         return;
                     }
                     excelSonuclar = s.sonuclar;
                     let h =
                         '<div style="background:var(--success-bg);color:var(--success);padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px"><b>' +
                         esc(s.toplam) +
-                        '</b> kayıt eşleştirildi.</div>';
-                    if (s.taninanSutunlar && s.taninanSutunlar.length)
-                        h +=
-                            '<p style="font-size:12px;color:var(--secondary);margin-bottom:8px">Tanınan sütunlar: ' +
-                            s.taninanSutunlar.map((x) => esc(x.baslik)).join(', ') +
-                            '</p>';
+                        '</b> kayıt önizlendi.</div>';
                     if (s.sorunlar && s.sorunlar.length) {
                         h +=
                             '<div style="background:var(--error-container);color:var(--on-error-container);padding:10px;border-radius:8px;font-size:12px;margin-bottom:10px"><b>' +
@@ -4594,60 +4574,8 @@
                     }
                     document.getElementById('excel-sonuc').innerHTML = h;
                     if (s.toplam > 0) document.getElementById('excel-uygula-btn').style.display = 'block';
-                    // AI butonu sundu
-                    document.getElementById('excel-ai-bolum').style.display = 'block';
                 };
                 r.readAsDataURL(f);
-            }
-
-            async function excelAiOnizle() {
-                const dosya = window._excelDosyaCache;
-                if (!dosya) {
-                    toast('Önce bir dosya seçin.');
-                    return;
-                }
-                document.getElementById('excel-uygula-btn').style.display = 'none';
-                document.getElementById('excel-sonuc').innerHTML =
-                    '<p style="color:var(--secondary)">Yapay zeka analiz ediyor... (10-30 saniye sürebilir)</p>';
-                const s = await apicagir('/api/excel/ai-onizle', 'POST', { dosya, tip: excelTip });
-                if (s.hata) {
-                    document.getElementById('excel-sonuc').innerHTML =
-                        '<p style="color:var(--error)">' + esc(s.hata) + '</p>';
-                    return;
-                }
-                excelSonuclar = s.sonuclar;
-                let h =
-                    '<div style="background:var(--success-bg);color:var(--success);padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px"><b>' +
-                    esc(s.toplam) +
-                    '</b> kayıt eşleştirildi.</div>';
-                if (Array.isArray(s.sonuclar) && s.sonuclar.length) {
-                    h +=
-                        '<p style="font-size:12px;color:var(--secondary);margin-bottom:8px">İlk birkaç kayıt önizleme:</p>';
-                    h +=
-                        '<div style="max-height:200px;overflow-y:auto;background:var(--surface-low);border-radius:8px;padding:10px;font-size:11px">';
-                    s.sonuclar.slice(0, 5).forEach((k) => {
-                        h += '<div style="border-bottom:1px solid var(--outline-variant);padding:6px 0">';
-                        if (k.il_adi) h += '<b>' + esc(k.il_adi) + '</b>';
-                        if (k.ilce_adi) h += ' / ' + esc(k.ilce_adi);
-                        if (k.baskan_ad_soyad) h += ' — ' + esc(k.baskan_ad_soyad);
-                        if (k.baskan_telefon) h += ' (' + esc(k.baskan_telefon) + ')';
-                        h += '</div>';
-                    });
-                    h += '</div>';
-                }
-                if (s.sorunlar && s.sorunlar.length) {
-                    h +=
-                        '<div style="background:var(--error-container);color:var(--on-error-container);padding:10px;border-radius:8px;font-size:12px;margin-top:10px"><b>' +
-                        esc(s.sorunlar.length) +
-                        ' kayıt atlandı:</b><br>' +
-                        s.sorunlar
-                            .slice(0, 5)
-                            .map((p) => esc(p.sorun))
-                            .join('<br>') +
-                        '</div>';
-                }
-                document.getElementById('excel-sonuc').innerHTML = h;
-                if (s.toplam > 0) document.getElementById('excel-uygula-btn').style.display = 'block';
             }
             async function excelUygula() {
                 const s = await apicagir('/api/excel/uygula', 'POST', {

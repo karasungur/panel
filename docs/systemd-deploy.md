@@ -52,10 +52,6 @@ BACKUP_DIR=/var/backups/panel
 ADMIN_KULLANICI_ADI=admin
 ADMIN_SIFRE=degistirilecek-guclu-sifre
 JWT_SECRET=degistirilecek-uzun-rastgele-jwt-secret
-GEMINI_AI_ENABLED=false
-GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.0-flash
-GEMINI_TIMEOUT_MS=15000
 ```
 
 Dosya izinlerini sinirlayin:

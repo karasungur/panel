@@ -56,10 +56,6 @@ Node.js 22.13+ gereklidir (node:sqlite için).
 | `ADMIN_KULLANICI_ADI` | Evet                  | `npm run seed` ile olusturulan admin kullanici adi.                                                       |
 | `ADMIN_SIFRE`         | Evet                  | Ilk admin sifresi; production'da varsayilan kullanmayin.                                                  |
 | `JWT_SECRET`          | Evet                  | JWT imzalama anahtari; uzun ve rastgele olmali.                                                           |
-| `GEMINI_AI_ENABLED`   | Opsiyonel             | `true` olmadikca Gemini destekli Excel analizi kapali kalir.                                              |
-| `GEMINI_API_KEY`      | Opsiyonel             | AI etkinse Gemini API anahtari.                                                                           |
-| `GEMINI_MODEL`        | Opsiyonel             | Varsayilan `gemini-2.0-flash`.                                                                            |
-| `GEMINI_TIMEOUT_MS`   | Opsiyonel             | Gemini istek zaman asimi; 1000-60000 ms arasi.                                                            |
 
 ## Test
 

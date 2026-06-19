@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const ExcelJS = require('exceljs');
 
 function restoreEnv(previous) {
     for (const [key, value] of Object.entries(previous)) {
@@ -22,11 +23,7 @@ async function startTestServer(t) {
         BACKUP_DIR: process.env.BACKUP_DIR,
         ADMIN_KULLANICI_ADI: process.env.ADMIN_KULLANICI_ADI,
         ADMIN_SIFRE: process.env.ADMIN_SIFRE,
-        JWT_SECRET: process.env.JWT_SECRET,
-        GEMINI_AI_ENABLED: process.env.GEMINI_AI_ENABLED,
-        GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-        GEMINI_MODEL: process.env.GEMINI_MODEL,
-        GEMINI_TIMEOUT_MS: process.env.GEMINI_TIMEOUT_MS
+        JWT_SECRET: process.env.JWT_SECRET
     };
 
     process.env.NODE_ENV = 'test';
@@ -38,10 +35,6 @@ async function startTestServer(t) {
     process.env.ADMIN_KULLANICI_ADI = 'security-admin';
     process.env.ADMIN_SIFRE = 'security-admin-password';
     process.env.JWT_SECRET = 'security-jwt-secret-with-enough-length-for-tests';
-    process.env.GEMINI_AI_ENABLED = 'false';
-    process.env.GEMINI_API_KEY = '';
-    process.env.GEMINI_MODEL = 'gemini-2.0-flash';
-    process.env.GEMINI_TIMEOUT_MS = '15000';
 
     for (const modulePath of ['../server', '../database/db', '../database/seed']) {
         try {
@@ -132,15 +125,41 @@ test('security integration flows', async (t) => {
     assert.doesNotMatch(noteBody.icerik, /script|javascript:/i);
     assert.match(noteBody.icerik, /<h1>Merhaba<\/h1>/);
 
-    const ai = await fetch(`${ctx.baseUrl}/api/excel/ai-onizle`, {
+    const ilSablonu = await fetch(`${ctx.baseUrl}/api/excel/sablon?tip=il`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    assert.equal(ilSablonu.status, 200);
+    const ilSablonuBase64 = Buffer.from(await ilSablonu.arrayBuffer()).toString('base64');
+    const ilOnizleme = await fetch(`${ctx.baseUrl}/api/excel/onizle`, {
         method: 'POST',
         headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ dosya: 'x', tip: 'il' })
+        body: JSON.stringify({ dosya: ilSablonuBase64, tip: 'il' })
     });
-    assert.equal(ai.status, 403);
+    assert.equal(ilOnizleme.status, 200);
+    const ilOnizlemeBody = await ilOnizleme.json();
+    assert.equal(ilOnizlemeBody.sablon, 'il');
+    assert.equal(ilOnizlemeBody.toplam, 1);
+    assert.equal(ilOnizlemeBody.sonuclar[0].il_adi, 'Ordu');
+
+    const hataliWb = new ExcelJS.Workbook();
+    const hataliWs = hataliWb.addWorksheet('Veriler');
+    hataliWs.addRow(['Yanlış Başlık', 'İl Adı']);
+    hataliWs.addRow(['52', 'Ordu']);
+    const hataliBase64 = Buffer.from(await hataliWb.xlsx.writeBuffer()).toString('base64');
+    const hataliOnizleme = await fetch(`${ctx.baseUrl}/api/excel/onizle`, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ dosya: hataliBase64, tip: 'il' })
+    });
+    assert.equal(hataliOnizleme.status, 400);
+    const hataliOnizlemeBody = await hataliOnizleme.json();
+    assert.match(hataliOnizlemeBody.hata, /şablonu uyumsuz/i);
 
     const me = await fetch(`${ctx.baseUrl}/api/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }

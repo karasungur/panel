@@ -13,11 +13,7 @@ const REQUIRED_ENV_KEYS = [
     'BACKUP_DIR',
     'ADMIN_KULLANICI_ADI',
     'ADMIN_SIFRE',
-    'JWT_SECRET',
-    'GEMINI_AI_ENABLED',
-    'GEMINI_API_KEY',
-    'GEMINI_MODEL',
-    'GEMINI_TIMEOUT_MS'
+    'JWT_SECRET'
 ];
 
 function envExampleKeys() {
@@ -58,11 +54,7 @@ test('GET /api returns API status', async (t) => {
         BACKUP_DIR: process.env.BACKUP_DIR,
         ADMIN_KULLANICI_ADI: process.env.ADMIN_KULLANICI_ADI,
         ADMIN_SIFRE: process.env.ADMIN_SIFRE,
-        JWT_SECRET: process.env.JWT_SECRET,
-        GEMINI_AI_ENABLED: process.env.GEMINI_AI_ENABLED,
-        GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-        GEMINI_MODEL: process.env.GEMINI_MODEL,
-        GEMINI_TIMEOUT_MS: process.env.GEMINI_TIMEOUT_MS
+        JWT_SECRET: process.env.JWT_SECRET
     };
 
     process.env.NODE_ENV = 'test';
@@ -74,10 +66,6 @@ test('GET /api returns API status', async (t) => {
     process.env.ADMIN_KULLANICI_ADI = 'smoke-admin';
     process.env.ADMIN_SIFRE = 'smoke-admin-password';
     process.env.JWT_SECRET = 'smoke-jwt-secret-with-enough-length-for-tests';
-    process.env.GEMINI_AI_ENABLED = 'false';
-    process.env.GEMINI_API_KEY = '';
-    process.env.GEMINI_MODEL = 'gemini-2.0-flash';
-    process.env.GEMINI_TIMEOUT_MS = '15000';
 
     delete require.cache[require.resolve('../server')];
     try {

@@ -5,9 +5,56 @@ const { tokenDogrula } = require('../middleware/auth');
 const { kayitFormatla, kayitMaskele } = require('../middleware/format');
 const router = express.Router();
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
-const GEMINI_VARSAYILAN_TIMEOUT_MS = 15000;
-const AI_HASSAS_ALANLAR = new Set(['baskan_ad_soyad', 'baskan_telefon', 'baskan_tc']);
+const EXCEL_SABLONLARI = {
+    il: {
+        basliklar: [
+            'Plaka',
+            'İl Adı',
+            'Tanıtım ve Medya Başkanı',
+            'Telefon',
+            'TC Kimlik No',
+            'Instagram',
+            'Twitter',
+            'Facebook',
+            'TikTok'
+        ],
+        alanlar: [
+            'plaka',
+            'il_adi',
+            'baskan_ad_soyad',
+            'baskan_telefon',
+            'baskan_tc',
+            'instagram_url',
+            'twitter_url',
+            'facebook_url',
+            'tiktok_url'
+        ]
+    },
+    ilce: {
+        basliklar: [
+            'İl Adı',
+            'İlçe Adı',
+            'Tanıtım ve Medya Başkanı',
+            'Telefon',
+            'TC Kimlik No',
+            'Instagram',
+            'Twitter',
+            'Facebook',
+            'TikTok'
+        ],
+        alanlar: [
+            'il_adi',
+            'ilce_adi',
+            'baskan_ad_soyad',
+            'baskan_telefon',
+            'baskan_tc',
+            'instagram_url',
+            'twitter_url',
+            'facebook_url',
+            'tiktok_url'
+        ]
+    }
+};
 
 function bayrakAcikMi(deger) {
     return ['1', 'true', 'yes', 'evet', 'on'].includes(
@@ -15,20 +62,6 @@ function bayrakAcikMi(deger) {
             .trim()
             .toLowerCase()
     );
-}
-
-function geminiAktifMi() {
-    return bayrakAcikMi(process.env.GEMINI_AI_ENABLED);
-}
-
-function geminiTimeoutMs() {
-    const n = parseInt(process.env.GEMINI_TIMEOUT_MS || '', 10);
-    if (Number.isFinite(n) && n >= 1000 && n <= 60000) return n;
-    return GEMINI_VARSAYILAN_TIMEOUT_MS;
-}
-
-function geminiModelYolu() {
-    return GEMINI_MODEL.startsWith('models/') ? GEMINI_MODEL : 'models/' + GEMINI_MODEL;
 }
 
 function hassasVeriIndirilebilirMi(req) {
@@ -60,161 +93,6 @@ function norm(s) {
         .replace(/Ç/g, 'c')
         .replace(/[^a-z0-9]/g, '')
         .trim();
-}
-
-// AKILLI ALGILAYICI - basliktan sutun tipini bul
-function sutunTipiBul(baslik) {
-    const n = norm(baslik);
-    if (!n) return null;
-
-    // Plaka
-    if (n === 'plaka' || n === 'no' || n === 'sira' || n === 'siralama' || n === 'sn' || n === 'id') {
-        if (n === 'plaka') return 'plaka';
-    }
-    if (n.includes('plaka')) return 'plaka';
-
-    // Ilce - "ilce adi" + varyasyonlar (once kontrol et, "il" eslesmesi onlemek icin)
-    if (n.includes('ilce') || n.includes('kaza') || n === 'belde' || n === 'belediye') {
-        if (n.includes('ad') || n.includes('isim') || n === 'ilce' || n === 'ilcesi' || n === 'kaza' || n === 'belde') {
-            return 'ilce_adi';
-        }
-        return 'ilce_adi'; // herhangi bir ilce icermesi de yeter
-    }
-    if (n === 'district') return 'ilce_adi';
-
-    // Il
-    if (
-        n === 'il' ||
-        n === 'ili' ||
-        n === 'sehir' ||
-        n === 'sehri' ||
-        n === 'memleket' ||
-        n === 'province' ||
-        n === 'city'
-    )
-        return 'il_adi';
-    if (n.includes('il') && (n.includes('ad') || n.includes('isim')) && !n.includes('ilce')) return 'il_adi';
-    if (n.includes('sehir') || n.includes('province') || n.includes('city')) return 'il_adi';
-
-    // Ad Soyad / Baskan
-    if (
-        n.includes('adsoyad') ||
-        n.includes('soyad') ||
-        n.includes('isim') ||
-        n.includes('baskan') ||
-        n.includes('sorumlu') ||
-        n.includes('yetkili') ||
-        n.includes('koordinator') ||
-        n.includes('temsilci') ||
-        n.includes('uye') ||
-        n.includes('ad') ||
-        n === 'name' ||
-        n === 'fullname' ||
-        n === 'tam' ||
-        n === 'kisi'
-    ) {
-        // "ad" cok genel olabilir, ama bu noktada baska sutun adlari kontrol edildi
-        return 'baskan_ad_soyad';
-    }
-
-    // Telefon
-    if (
-        n.includes('telefon') ||
-        n.includes('tel') ||
-        n.includes('gsm') ||
-        n.includes('cep') ||
-        n.includes('numara') ||
-        n.includes('phone') ||
-        n.includes('mobile') ||
-        n === 'no' ||
-        n === 'irtibat'
-    )
-        return 'baskan_telefon';
-
-    // TC Kimlik
-    if (
-        n.includes('tc') ||
-        n.includes('kimlik') ||
-        n.includes('tckn') ||
-        n === 'tcno' ||
-        n === 'tckno' ||
-        n.includes('vatandaslik') ||
-        n.includes('identity')
-    )
-        return 'baskan_tc';
-
-    // Instagram
-    if (n.includes('instagram') || n.includes('insta') || n === 'ig' || n === 'igadresi' || n === 'igusername')
-        return 'instagram_url';
-
-    // Twitter/X
-    if (n.includes('twitter') || n.includes('tweet') || n === 'x' || n === 'xadresi') return 'twitter_url';
-
-    // Facebook
-    if (n.includes('facebook') || n.includes('face') || n === 'fb') return 'facebook_url';
-
-    // TikTok
-    if (n.includes('tiktok') || n.includes('tik') || n === 'tt') return 'tiktok_url';
-
-    return null;
-}
-
-// AKILLI ALGILAYICI - icerikten sutun tipini bul
-function icerikTipiBul(deger) {
-    const d = String(deger || '')
-        .toLowerCase()
-        .trim();
-    if (!d) return null;
-
-    // URL kontrolu
-    if (d.includes('instagram.com') || d.match(/^@?[a-z0-9._]+\s*\(instagram\)/)) return 'instagram_url';
-    if (d.includes('twitter.com') || d.includes('x.com')) return 'twitter_url';
-    if (d.includes('facebook.com') || d.includes('fb.com')) return 'facebook_url';
-    if (d.includes('tiktok.com')) return 'tiktok_url';
-
-    // TC kimlik (11 hane sayi)
-    if (/^\d{11}$/.test(d)) return 'baskan_tc';
-
-    // Telefon (10-11 hane, 5 ile basliyor genelde)
-    if (
-        /^[0-9\s()+-]{10,15}$/.test(d.replace(/[\s()+-]/g, '')) &&
-        d.replace(/\D/g, '').length >= 10 &&
-        d.replace(/\D/g, '').length <= 13
-    ) {
-        if (!/^\d{11}$/.test(d.replace(/\D/g, ''))) return 'baskan_telefon';
-    }
-
-    return null;
-}
-
-// AKILLI ICEEIK ALGILAYICI - cogunluk oyu (sutundaki en sik tip)
-function sutunIcerigindenTipBul(satirlar, sutunIndex) {
-    const sayim = {};
-    let bakilan = 0;
-    for (let r = 1; r < Math.min(satirlar.length, 11); r++) {
-        const v = String(satirlar[r][sutunIndex] || '').trim();
-        if (!v) continue;
-        bakilan++;
-        const t = icerikTipiBul(v);
-        if (t) sayim[t] = (sayim[t] || 0) + 1;
-    }
-    if (!bakilan) return null;
-    let max = 0,
-        sonuc = null;
-    for (const [tip, sayi] of Object.entries(sayim)) {
-        if (sayi > max && sayi >= Math.ceil(bakilan / 2)) {
-            max = sayi;
-            sonuc = tip;
-        }
-    }
-    return sonuc;
-}
-
-// Il/Ilce isim algilama - icerige bakarak
-function ilIsmiOlasiMi(deger, tumIller) {
-    const d = norm(deger);
-    if (!d || d.length < 3) return false;
-    return tumIller.some((il) => norm(il.il_adi) === d);
 }
 
 // Hucre degerini string'e cevir
@@ -250,15 +128,6 @@ async function dosyaOku(base64) {
     return satirlar;
 }
 
-// Baslik satirini bul - genelde 1. satir ama bos satir olabilir, basliklarda iceriklerden farkli olabilir
-function baslikSatirinibul(satirlar) {
-    for (let i = 0; i < Math.min(satirlar.length, 5); i++) {
-        const dolu = satirlar[i].filter((h) => String(h).trim() !== '').length;
-        if (dolu >= 2) return i;
-    }
-    return 0;
-}
-
 function eksikAlanlarBul(tip, kayit) {
     const eksik = [];
     if (!kayit.il_adi) eksik.push('il_adi');
@@ -285,370 +154,60 @@ function aiSatirNo(ham, index) {
     return Number.isFinite(n) && n > 0 ? n : index + 1;
 }
 
-function piiTokenEkle(harita, tip, deger) {
-    const token = '[[PII_' + tip + '_' + (harita.size + 1) + ']]';
-    harita.set(token, String(deger));
-    return token;
+function sablonBasliklariniDogrula(tip, baslikSatiri) {
+    const sablon = EXCEL_SABLONLARI[tip];
+    if (!sablon) return { ok: false, hata: 'Geçersiz Excel tipi.' };
+
+    const gelenBasliklar = (baslikSatiri || []).map((h) => String(h || '').trim());
+    const beklenen = sablon.basliklar;
+    const fazlaBasliklar = gelenBasliklar.slice(beklenen.length).filter(Boolean);
+    const eksikVeyaFarkli = beklenen.filter((baslik, i) => gelenBasliklar[i] !== baslik);
+
+    if (eksikVeyaFarkli.length || fazlaBasliklar.length) {
+        return {
+            ok: false,
+            hata: 'Excel şablonu uyumsuz. Lütfen örnek şablonu indirip başlık satırını değiştirmeden doldurun.',
+            beklenenBasliklar: beklenen
+        };
+    }
+
+    return { ok: true };
 }
 
-function adSoyadGibiMi(deger) {
-    const m = String(deger || '').trim();
-    return (
-        m.length >= 3 &&
-        m.length <= 80 &&
-        !m.includes('@') &&
-        !/^https?:\/\//i.test(m) &&
-        /^[A-Za-zçğıöşüÇĞİÖŞÜ\s.'-]+$/.test(m)
-    );
-}
-
-function konumAdlariSeti() {
-    try {
-        const adlar = new Set();
-        db.prepare('SELECT il_adi AS ad FROM iller')
-            .all()
-            .forEach((r) => adlar.add(norm(r.ad)));
-        db.prepare('SELECT ilce_adi AS ad FROM ilceler')
-            .all()
-            .forEach((r) => adlar.add(norm(r.ad)));
-        return adlar;
-    } catch (_e) {
-        return new Set();
-    }
-}
-
-function hucrePiiRedakteEt(deger, alanTipi, harita, konumAdlari) {
-    let metin = String(deger || '').trim();
-    if (!metin) return '';
-
-    if (alanTipi === 'baskan_ad_soyad' && adSoyadGibiMi(metin)) {
-        return piiTokenEkle(harita, 'AD', metin);
-    }
-    if (alanTipi === 'baskan_tc') {
-        return piiTokenEkle(harita, 'TC', metin);
-    }
-    if (alanTipi === 'baskan_telefon') {
-        return piiTokenEkle(harita, 'TEL', metin);
-    }
-    if (!alanTipi && metin.split(/\s+/).length >= 2 && adSoyadGibiMi(metin) && !konumAdlari.has(norm(metin))) {
-        return piiTokenEkle(harita, 'AD', metin);
-    }
-
-    metin = metin.replace(/\b[1-9]\d{10}\b/g, (v) => piiTokenEkle(harita, 'TC', v));
-    metin = metin.replace(/(?:\+?90[\s.-]*)?(?:0[\s.-]*)?5\d{2}[\s().-]*\d{3}[\s.-]*\d{2}[\s.-]*\d{2}/g, (v) =>
-        piiTokenEkle(harita, 'TEL', v)
-    );
-    return metin;
-}
-
-function piiGeriYukle(deger, harita) {
-    if (typeof deger === 'string') {
-        let sonuc = deger;
-        for (const [token, asil] of harita.entries()) {
-            sonuc = sonuc.split(token).join(asil);
-        }
-        return sonuc;
-    }
-    if (Array.isArray(deger)) return deger.map((item) => piiGeriYukle(item, harita));
-    if (deger && typeof deger === 'object') {
-        const sonuc = {};
-        for (const [k, v] of Object.entries(deger)) sonuc[k] = piiGeriYukle(v, harita);
-        return sonuc;
-    }
-    return deger;
-}
-
-function geminiVerisiHazirla(satirlar) {
-    const harita = new Map();
-    const baslikIdx = baslikSatirinibul(satirlar);
-    const basliklar = satirlar[baslikIdx] || [];
-    const alanTipleri = {};
-    const konumAdlari = konumAdlariSeti();
-    basliklar.forEach((b, i) => {
-        const t = sutunTipiBul(b);
-        if (AI_HASSAS_ALANLAR.has(t)) alanTipleri[i] = t;
+function satirdanKayitOlustur(tip, satir) {
+    const sablon = EXCEL_SABLONLARI[tip];
+    const kayit = {};
+    sablon.alanlar.forEach((alan, index) => {
+        const deger = String(satir[index] ?? '').trim();
+        if (deger) kayit[alan] = deger;
     });
-
-    const ilkN = satirlar.slice(0, Math.min(satirlar.length, 100));
-    const veriMetni = ilkN
-        .map((row, idx) => {
-            const hucreler = row
-                .map((c, colIdx) =>
-                    idx === baslikIdx
-                        ? String(c || '').trim()
-                        : hucrePiiRedakteEt(c, alanTipleri[colIdx], harita, konumAdlari)
-                )
-                .filter((c) => c);
-            return 'Satır ' + (idx + 1) + ': ' + hucreler.join(' | ');
-        })
-        .filter((s) => s.length > 10)
-        .join('\n');
-
-    return { veriMetni, harita };
+    return kayit;
 }
 
-// ========== GEMINI AI ILE AKILLI ALGILAMA ==========
-// Excel verisini Gemini'ye gonderir, "her satir hangi il/ilce/kisi" kararini ona verir
-async function geminiIleAlgila(satirlar, tip) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-        throw new Error('GEMINI_API_KEY .env dosyasında tanımlı değil. Sistem yöneticisine başvurun.');
-    }
-
-    const { veriMetni, harita } = geminiVerisiHazirla(satirlar);
-
-    if (!veriMetni.trim()) {
-        throw new Error('Excel dosyası boş veya okunamadı.');
-    }
-
-    const istek =
-        tip === 'il'
-            ? `Aşağıdaki Excel verisini analiz et. Bu Türkiye il başkanları/sorumluları listesi.
-Her bir il için aşağıdaki bilgileri çıkar (sadece bulabildiğin alanları):
-- il_adi: il adı (zorunlu)
-- baskan_ad_soyad: kişinin adı ve soyadı
-- baskan_telefon: telefon numarası
-- baskan_tc: 11 haneli TC kimlik no
-- instagram_url: instagram hesabı
-- twitter_url: twitter/x hesabı
-- facebook_url: facebook hesabı
-- tiktok_url: tiktok hesabı
-
-ÖNEMLİ KURALLAR:
-- Sadece JSON dizisi döndür, başka açıklama YAZMA
-- Format: [{"_satir":2,"il_adi":"Ordu","baskan_ad_soyad":"[[PII_AD_1]]",...}, ...]
-- Kaynak satır numarasını _satir alanında döndür
-- Bilgi yoksa o alanı koyma (null değil, hiç koyma)
-- İl isimleri Türkçe karakterlerle olmalı (Ordu, İstanbul, Şanlıurfa gibi)
-- Sosyal medya: sadece kullanıcı adı yazılıysa @işareti veya tam URL olmasa bile aynen yaz
-- [[PII_...]] ile görünen redaksiyon tokenlarını aynen koru, değiştirme veya tahmin etme
-
-Excel verisi:
-${veriMetni}`
-            : `Aşağıdaki Excel verisini analiz et. Bu Türkiye ilçe başkanları/sorumluları listesi.
-Her bir ilçe için aşağıdaki bilgileri çıkar:
-- il_adi: ilçenin bağlı olduğu il adı (zorunlu)
-- ilce_adi: ilçe adı (zorunlu)
-- baskan_ad_soyad: kişinin adı ve soyadı
-- baskan_telefon: telefon numarası
-- baskan_tc: 11 haneli TC kimlik no
-- instagram_url, twitter_url, facebook_url, tiktok_url: sosyal medya hesapları
-
-ÖNEMLİ KURALLAR:
-- Sadece JSON dizisi döndür, başka açıklama YAZMA
-- Format: [{"_satir":2,"il_adi":"Ordu","ilce_adi":"Altınordu",...}, ...]
-- Kaynak satır numarasını _satir alanında döndür
-- Bilgi yoksa o alanı koyma
-- Aynı il altında birden çok ilçe olabilir (excel'de il bir kere yazılıp altına ilçeler dizilmiş olabilir) - her ilçe için il_adi'nı tekrar yaz
-- İl ve ilçe isimleri Türkçe karakterlerle (Ordu/Altınordu, İstanbul/Beyoğlu gibi)
-- [[PII_...]] ile görünen redaksiyon tokenlarını aynen koru, değiştirme veya tahmin etme
-
-Excel verisi:
-${veriMetni}`;
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/${geminiModelYolu()}:generateContent?key=${apiKey}`;
-    const timeoutMs = geminiTimeoutMs();
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    let cevap;
-
-    try {
-        cevap = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: controller.signal,
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: istek }] }],
-                generationConfig: {
-                    temperature: 0.1,
-                    responseMimeType: 'application/json'
-                }
-            })
-        });
-    } catch (e) {
-        if (e.name === 'AbortError') {
-            const err = new Error('Gemini isteği zaman aşımına uğradı.');
-            err.statusCode = 504;
-            throw err;
-        }
-        throw e;
-    } finally {
-        clearTimeout(timeout);
-    }
-
-    if (!cevap.ok) {
-        const txt = await cevap.text();
-        throw new Error('Gemini API hatası: ' + cevap.status + ' - ' + txt.substring(0, 200));
-    }
-
-    const data = await cevap.json();
-    const metin = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!metin) {
-        throw new Error('Gemini yanıt vermedi.');
-    }
-
-    let json;
-    try {
-        // JSON markdown bloklari icinde gelmis olabilir, temizle
-        const temiz = metin
-            .replace(/```json\s*/g, '')
-            .replace(/```\s*$/g, '')
-            .trim();
-        json = JSON.parse(temiz);
-    } catch (e) {
-        throw new Error('Gemini geçerli JSON döndürmedi: ' + metin.substring(0, 200), { cause: e });
-    }
-
-    if (!Array.isArray(json)) {
-        throw new Error('Gemini liste döndürmedi.');
-    }
-
-    return piiGeriYukle(json, harita);
-}
-
-// POST /api/excel/ai-onizle - Gemini ile algila
-router.post('/ai-onizle', tokenDogrula, async (req, res) => {
-    const { dosya, tip } = req.body;
-    if (!dosya) return res.status(400).json({ hata: 'Dosya gereklidir.' });
-    if (!geminiAktifMi()) {
-        return res
-            .status(403)
-            .json({ hata: 'AI analizi kapalı. Etkinleştirmek için GEMINI_AI_ENABLED=true ayarlayın.' });
-    }
-
-    let satirlar;
-    try {
-        satirlar = await dosyaOku(dosya);
-    } catch (_e) {
-        return res.status(400).json({ hata: 'Excel dosyası okunamadı.' });
-    }
-    if (!satirlar.length) return res.status(400).json({ hata: 'Dosya boş.' });
-
-    try {
-        const sonuclar = await geminiIleAlgila(satirlar, tip);
-        const sorunlar = [];
-        const temiz = [];
-        sonuclar.forEach((ham, index) => {
-            const satirNo = aiSatirNo(ham, index);
-            const k = kayitFormatla(ham && typeof ham === 'object' ? ham : {});
-            k._satir = satirNo;
-            const eksikAlanlar = eksikAlanlarBul(tip, k);
-            if (eksikAlanlar.length) {
-                sorunlar.push({
-                    satir: satirNo,
-                    sorun: sorunMesaji(tip, eksikAlanlar),
-                    eksikAlanlar,
-                    algilananAlanlar: algilananAlanlar(k),
-                    kaynak: 'ai'
-                });
-                return;
-            }
-            temiz.push(k);
-        });
-        res.json({ toplam: temiz.length, sonuclar: temiz, sorunlar, ai: true });
-    } catch (e) {
-        console.error('AI hata:', e.message);
-        res.status(e.statusCode || 500).json({ hata: 'AI ile analiz başarısız: ' + e.message });
-    }
-});
-
-// ========== AKILLI ALGILAYICI (BEDAVA) ==========
-
-// POST /api/excel/onizle - AKILLI ALGILAMA
+// POST /api/excel/onizle - sablon bazli onizleme
 router.post('/onizle', tokenDogrula, async (req, res) => {
-    const { dosya, tip } = req.body;
+    const { dosya } = req.body;
+    const tip = req.body.tip === 'ilce' ? 'ilce' : 'il';
     if (!dosya) return res.status(400).json({ hata: 'Dosya gereklidir.' });
     let satirlar;
     try {
         satirlar = await dosyaOku(dosya);
     } catch (_e) {
-        return res.status(400).json({ hata: 'Excel dosyası okunamadı.' });
+        return res.status(400).json({ hata: 'Excel dosyası okunamadı. Lütfen indirilen .xlsx şablonunu yükleyin.' });
     }
     if (!satirlar.length) return res.status(400).json({ hata: 'Dosya boş.' });
 
-    const baslikIdx = baslikSatirinibul(satirlar);
-    const basliklar = satirlar[baslikIdx];
-    const sutunMap = {};
-    const taninanSutunlar = [];
-    const tumIller = db.prepare('SELECT il_adi FROM iller').all();
-
-    // 1. Baslik isimlerine bakarak algila
-    basliklar.forEach((b, i) => {
-        const t = sutunTipiBul(b);
-        if (t && !Object.values(sutunMap).includes(t)) {
-            sutunMap[i] = t;
-            taninanSutunlar.push({ index: i, baslik: b, tip: t, kaynak: 'baslik' });
-        }
-    });
-
-    // 2. Eksik kalanlar icin icerige bakarak algila
-    if (satirlar.length > baslikIdx + 1) {
-        basliklar.forEach((b, i) => {
-            if (sutunMap[i]) return;
-            // Once URL/desen algilamasi
-            const icerikTipi = sutunIcerigindenTipBul(satirlar.slice(baslikIdx), i);
-            if (icerikTipi && !Object.values(sutunMap).includes(icerikTipi)) {
-                sutunMap[i] = icerikTipi;
-                taninanSutunlar.push({ index: i, baslik: b || '(otomatik)', tip: icerikTipi, kaynak: 'icerik' });
-                return;
-            }
-            // Il ismi olasi mi? (icerige bak)
-            if (!Object.values(sutunMap).includes('il_adi')) {
-                let ilEslesme = 0,
-                    kontrol = 0;
-                for (let r = baslikIdx + 1; r < Math.min(satirlar.length, baslikIdx + 11); r++) {
-                    const v = String(satirlar[r][i] || '').trim();
-                    if (!v) continue;
-                    kontrol++;
-                    if (ilIsmiOlasiMi(v, tumIller)) ilEslesme++;
-                }
-                if (kontrol > 0 && ilEslesme >= Math.ceil(kontrol / 2)) {
-                    sutunMap[i] = 'il_adi';
-                    taninanSutunlar.push({ index: i, baslik: b || '(otomatik)', tip: 'il_adi', kaynak: 'icerik-il' });
-                }
-            }
-        });
-    }
-
-    // 3. Ad-Soyad sutunu hala yoksa, isim gibi gorunen bir text sutununu ad olarak isaretle
-    if (!Object.values(sutunMap).includes('baskan_ad_soyad')) {
-        basliklar.forEach((b, i) => {
-            if (sutunMap[i]) return;
-            // 3+ harfli, sayi olmayan, en cok 50 karakter olan degerler isim olabilir
-            let isimGibi = 0,
-                kontrol = 0;
-            for (let r = baslikIdx + 1; r < Math.min(satirlar.length, baslikIdx + 11); r++) {
-                const v = String(satirlar[r][i] || '').trim();
-                if (!v) continue;
-                kontrol++;
-                if (/^[A-Za-zçğıöşüÇĞİÖŞÜ\s.]{3,60}$/.test(v) && v.split(' ').length >= 2) isimGibi++;
-            }
-            if (
-                kontrol > 0 &&
-                isimGibi >= Math.ceil(kontrol * 0.7) &&
-                !Object.values(sutunMap).includes('baskan_ad_soyad')
-            ) {
-                sutunMap[i] = 'baskan_ad_soyad';
-                taninanSutunlar.push({
-                    index: i,
-                    baslik: b || '(otomatik)',
-                    tip: 'baskan_ad_soyad',
-                    kaynak: 'icerik-isim'
-                });
-            }
-        });
+    const baslikKontrolu = sablonBasliklariniDogrula(tip, satirlar[0]);
+    if (!baslikKontrolu.ok) {
+        return res.status(400).json(baslikKontrolu);
     }
 
     const sonuclar = [];
     const sorunlar = [];
-    for (let r = baslikIdx + 1; r < satirlar.length; r++) {
+    for (let r = 1; r < satirlar.length; r++) {
         const satir = satirlar[r];
         if (satir.every((h) => String(h).trim() === '')) continue;
-        const kayit = {};
-        for (const [idx, t] of Object.entries(sutunMap)) {
-            const v = String(satir[idx] ?? '').trim();
-            if (v) kayit[t] = v;
-        }
+        const kayit = satirdanKayitOlustur(tip, satir);
         const eksikAlanlar = eksikAlanlarBul(tip, kayit);
         if (eksikAlanlar.length) {
             sorunlar.push({
@@ -663,7 +222,7 @@ router.post('/onizle', tokenDogrula, async (req, res) => {
         kayit._satir = r + 1;
         sonuclar.push(kayitFormatla(kayit));
     }
-    res.json({ toplam: sonuclar.length, sonuclar, sorunlar, taninanSutunlar });
+    res.json({ toplam: sonuclar.length, sonuclar, sorunlar, sablon: tip });
 });
 
 // POST /api/excel/uygula
@@ -815,38 +374,14 @@ async function excelGonder(res, satirlar, ad) {
 
 router.get('/sablon', tokenDogrula, async (req, res) => {
     const tip = req.query.tip === 'ilce' ? 'ilce' : 'il';
-    let basliklar, satirlar;
+    const basliklar = EXCEL_SABLONLARI[tip].basliklar;
+    let satirlar;
     if (tip === 'il') {
-        basliklar = [
-            'Plaka',
-            'İl Adı',
-            'İlçe Adı',
-            'Tanıtım ve Medya Başkanı',
-            'Telefon',
-            'TC Kimlik No',
-            'Instagram',
-            'Twitter',
-            'Facebook',
-            'TikTok'
-        ];
         satirlar = [
             basliklar,
-            ['52', 'Ordu', '', 'Ahmet YILMAZ', '0555-123-45-67', '', 'https://instagram.com/ornek', '', '', ''],
-            ['', 'Ordu', 'Altınordu', 'Mehmet DEMİR', '0555-111-22-33', '', '', '', '', ''],
-            ['', 'Ordu', 'Ünye', 'Hasan KARA', '0555-444-55-66', '', '', '', '', '']
+            ['52', 'Ordu', 'Ahmet YILMAZ', '0555-123-45-67', '', 'https://instagram.com/ornek', '', '', '']
         ];
     } else {
-        basliklar = [
-            'İl Adı',
-            'İlçe Adı',
-            'Tanıtım ve Medya Başkanı',
-            'Telefon',
-            'TC Kimlik No',
-            'Instagram',
-            'Twitter',
-            'Facebook',
-            'TikTok'
-        ];
         satirlar = [
             basliklar,
             ['Ordu', 'Altınordu', 'Mehmet DEMİR', '0555-111-22-33', '', '', '', '', ''],
