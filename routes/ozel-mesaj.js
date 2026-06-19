@@ -16,33 +16,88 @@ function bildirimOlustur(kullanici_id, tip, baslik, icerik, link) {
     } catch (_e) {}
 }
 
+let ozelMesajKolonlariCache = null;
+
+function ozelMesajKolonlari() {
+    if (!ozelMesajKolonlariCache) {
+        ozelMesajKolonlariCache = new Set(
+            db
+                .prepare('PRAGMA table_info(ozel_mesajlar)')
+                .all()
+                .map((kolon) => kolon.name)
+        );
+    }
+    return ozelMesajKolonlariCache;
+}
+
+function ozelMesajSilmeKolonlariVarMi() {
+    const kolonlar = ozelMesajKolonlari();
+    return kolonlar.has('deleted_for_sender_at') && kolonlar.has('deleted_for_recipient_at');
+}
+
+function gorunurMesajKosulu(alias) {
+    if (!ozelMesajSilmeKolonlariVarMi()) return '1 = 1';
+    return `NOT ((${alias}.gonderen_id = ? AND ${alias}.deleted_for_sender_at IS NOT NULL)
+        OR (${alias}.alici_id = ? AND ${alias}.deleted_for_recipient_at IS NOT NULL))`;
+}
+
+function gorunurMesajParamlari(kullaniciId) {
+    return ozelMesajSilmeKolonlariVarMi() ? [kullaniciId, kullaniciId] : [];
+}
+
+function aliciIcinGorunurMesajKosulu(alias) {
+    return ozelMesajSilmeKolonlariVarMi() ? `${alias}.deleted_for_recipient_at IS NULL` : '1 = 1';
+}
+
+function mesajSilmeDesteklenmiyor(res) {
+    return res.status(409).json({ hata: 'Mesaj silme bu veritabanı şemasında desteklenmiyor.' });
+}
+
 // GET /api/ozel-mesaj/sohbetler -> aktif sohbet listesi (en son mesajla)
 router.get('/sohbetler', tokenDogrula, (req, res) => {
     const id = req.kullanici.id;
-    // Her sohbet icin: karsi taraf bilgisi, son mesaj, okunmamis sayisi
+    const gorunurKosul = gorunurMesajKosulu('om');
+    const okunmamisKosul = aliciIcinGorunurMesajKosulu('om3');
+
+    // Her sohbet icin: karsi taraf bilgisi, son gorunur mesaj, gorunur okunmamis sayisi
     const sohbetler = db
         .prepare(
             `
+        WITH gorunur AS (
+            SELECT
+                om.*,
+                CASE WHEN om.gonderen_id = ? THEN om.alici_id ELSE om.gonderen_id END AS kisi_id
+            FROM ozel_mesajlar om
+            WHERE (om.gonderen_id = ? OR om.alici_id = ?)
+              AND ${gorunurKosul}
+        ),
+        son_mesajlar AS (
+            SELECT *
+            FROM (
+                SELECT gorunur.*, ROW_NUMBER() OVER (PARTITION BY kisi_id ORDER BY id DESC) AS sira
+                FROM gorunur
+            )
+            WHERE sira = 1
+        ),
+        okunmamislar AS (
+            SELECT om3.gonderen_id AS kisi_id, COUNT(*) AS okunmamis
+            FROM ozel_mesajlar om3
+            WHERE om3.alici_id = ? AND om3.okundu = 0 AND ${okunmamisKosul}
+            GROUP BY om3.gonderen_id
+        )
         SELECT
-            CASE WHEN om.gonderen_id = ? THEN om.alici_id ELSE om.gonderen_id END AS kisi_id,
+            sm.kisi_id,
             k.kullanici_adi, k.ad_soyad, k.renk, k.profil_foto, k.son_giris, k.rol,
-            (SELECT metin FROM ozel_mesajlar om2 WHERE
-                (om2.gonderen_id = ? AND om2.alici_id = k.id) OR
-                (om2.gonderen_id = k.id AND om2.alici_id = ?)
-                ORDER BY om2.id DESC LIMIT 1) AS son_mesaj,
-            (SELECT tarih FROM ozel_mesajlar om2 WHERE
-                (om2.gonderen_id = ? AND om2.alici_id = k.id) OR
-                (om2.gonderen_id = k.id AND om2.alici_id = ?)
-                ORDER BY om2.id DESC LIMIT 1) AS son_tarih,
-            (SELECT COUNT(*) FROM ozel_mesajlar om3 WHERE om3.gonderen_id = k.id AND om3.alici_id = ? AND om3.okundu = 0) AS okunmamis
-        FROM ozel_mesajlar om
-        JOIN kullanicilar k ON k.id = CASE WHEN om.gonderen_id = ? THEN om.alici_id ELSE om.gonderen_id END
-        WHERE om.gonderen_id = ? OR om.alici_id = ?
-        GROUP BY kisi_id
-        ORDER BY son_tarih DESC
+            sm.metin AS son_mesaj,
+            sm.tarih AS son_tarih,
+            COALESCE(o.okunmamis, 0) AS okunmamis
+        FROM son_mesajlar sm
+        JOIN kullanicilar k ON k.id = sm.kisi_id
+        LEFT JOIN okunmamislar o ON o.kisi_id = sm.kisi_id
+        ORDER BY sm.tarih DESC, sm.id DESC
     `
         )
-        .all(id, id, id, id, id, id, id, id, id);
+        .all(id, id, id, ...gorunurMesajParamlari(id), id);
     res.json(sohbetler);
 });
 
@@ -67,22 +122,34 @@ router.get('/kullanicilar', tokenDogrula, (req, res) => {
 // GET /api/ozel-mesaj/:id -> belirli kisinin mesajlari
 router.get('/:id', tokenDogrula, (req, res) => {
     const benId = req.kullanici.id;
-    const kisiId = parseInt(req.params.id);
+    const kisiId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(kisiId) || kisiId <= 0) return res.status(400).json({ hata: 'Geçersiz kullanıcı.' });
+
+    const gorunurKosul = gorunurMesajKosulu('om');
     const mesajlar = db
         .prepare(
             `
-        SELECT om.*, k.ad_soyad AS gonderen_ad_soyad, k.kullanici_adi AS gonderen_kullanici_adi, k.renk AS gonderen_renk, k.profil_foto AS gonderen_foto
-        FROM ozel_mesajlar om
-        JOIN kullanicilar k ON om.gonderen_id = k.id
-        WHERE (om.gonderen_id = ? AND om.alici_id = ?) OR (om.gonderen_id = ? AND om.alici_id = ?)
-        ORDER BY om.id ASC
-        LIMIT 200
+        SELECT *
+        FROM (
+            SELECT om.*, k.ad_soyad AS gonderen_ad_soyad, k.kullanici_adi AS gonderen_kullanici_adi,
+                k.renk AS gonderen_renk, k.profil_foto AS gonderen_foto
+            FROM ozel_mesajlar om
+            JOIN kullanicilar k ON om.gonderen_id = k.id
+            WHERE ((om.gonderen_id = ? AND om.alici_id = ?) OR (om.gonderen_id = ? AND om.alici_id = ?))
+              AND ${gorunurKosul}
+            ORDER BY om.id DESC
+            LIMIT 200
+        ) son_mesajlar
+        ORDER BY son_mesajlar.id ASC
     `
         )
-        .all(benId, kisiId, kisiId, benId);
+        .all(benId, kisiId, kisiId, benId, ...gorunurMesajParamlari(benId));
 
     // Karsi tarafin gonderdiklerini okundu yap
-    db.prepare('UPDATE ozel_mesajlar SET okundu = 1 WHERE gonderen_id = ? AND alici_id = ?').run(kisiId, benId);
+    db.prepare(
+        `UPDATE ozel_mesajlar SET okundu = 1
+        WHERE gonderen_id = ? AND alici_id = ? AND ${aliciIcinGorunurMesajKosulu('ozel_mesajlar')}`
+    ).run(kisiId, benId);
 
     res.json(mesajlar);
 });
@@ -141,31 +208,50 @@ router.get('/yaziyor/:kisi_id', tokenDogrula, (req, res) => {
 // GET /api/ozel-mesaj/okunmamis/toplam -> tum okunmamis ozel mesaj sayisi
 router.get('/okunmamis/toplam', tokenDogrula, (req, res) => {
     const s = db
-        .prepare('SELECT COUNT(*) s FROM ozel_mesajlar WHERE alici_id = ? AND okundu = 0')
+        .prepare(
+            `SELECT COUNT(*) s FROM ozel_mesajlar
+            WHERE alici_id = ? AND okundu = 0 AND ${aliciIcinGorunurMesajKosulu('ozel_mesajlar')}`
+        )
         .get(req.kullanici.id).s;
     res.json({ okunmamis: s });
 });
 
-// DELETE /api/ozel-mesaj/mesaj/:id -> tek bir mesaj sil (sadece kendi gonderdigimi silebilirim)
+// DELETE /api/ozel-mesaj/mesaj/:id -> tek bir mesaji sadece benim icin gizle
 router.delete('/mesaj/:id', tokenDogrula, (req, res) => {
     const m = db.prepare('SELECT * FROM ozel_mesajlar WHERE id = ?').get(req.params.id);
     if (!m) return res.status(404).json({ hata: 'Mesaj bulunamadı.' });
     if (m.gonderen_id !== req.kullanici.id && m.alici_id !== req.kullanici.id) {
         return res.status(403).json({ hata: 'Yetkiniz yok.' });
     }
-    db.prepare('DELETE FROM ozel_mesajlar WHERE id = ?').run(req.params.id);
-    res.json({ mesaj: 'Mesaj silindi.' });
+    if (!ozelMesajSilmeKolonlariVarMi()) return mesajSilmeDesteklenmiyor(res);
+
+    const silmeKolonu = m.gonderen_id === req.kullanici.id ? 'deleted_for_sender_at' : 'deleted_for_recipient_at';
+    db.prepare(
+        `UPDATE ozel_mesajlar SET ${silmeKolonu} = COALESCE(${silmeKolonu}, CURRENT_TIMESTAMP) WHERE id = ?`
+    ).run(req.params.id);
+    res.json({ mesaj: 'Mesaj sizin için silindi.' });
 });
 
 // DELETE /api/ozel-mesaj/sohbet/:kisi_id -> tum sohbeti sil (benim icin)
 router.delete('/sohbet/:kisi_id', tokenDogrula, (req, res) => {
-    const kisiId = parseInt(req.params.kisi_id);
+    const kisiId = parseInt(req.params.kisi_id, 10);
+    if (!Number.isInteger(kisiId) || kisiId <= 0) return res.status(400).json({ hata: 'Geçersiz kullanıcı.' });
     const benId = req.kullanici.id;
-    db.prepare(
-        `DELETE FROM ozel_mesajlar WHERE
-        (gonderen_id = ? AND alici_id = ?) OR (gonderen_id = ? AND alici_id = ?)`
-    ).run(benId, kisiId, kisiId, benId);
-    res.json({ mesaj: 'Sohbet silindi.' });
+    if (!ozelMesajSilmeKolonlariVarMi()) return mesajSilmeDesteklenmiyor(res);
+
+    db.withTransaction(() => {
+        db.prepare(
+            `UPDATE ozel_mesajlar
+            SET deleted_for_sender_at = COALESCE(deleted_for_sender_at, CURRENT_TIMESTAMP)
+            WHERE gonderen_id = ? AND alici_id = ? AND deleted_for_sender_at IS NULL`
+        ).run(benId, kisiId);
+        db.prepare(
+            `UPDATE ozel_mesajlar
+            SET deleted_for_recipient_at = COALESCE(deleted_for_recipient_at, CURRENT_TIMESTAMP)
+            WHERE gonderen_id = ? AND alici_id = ? AND deleted_for_recipient_at IS NULL`
+        ).run(kisiId, benId);
+    });
+    res.json({ mesaj: 'Sohbet sizin için silindi.' });
 });
 
 module.exports = router;

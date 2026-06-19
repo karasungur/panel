@@ -45,17 +45,21 @@ Node.js 22.13+ gereklidir (node:sqlite için).
 
 `.env.example` dosyasini `.env` olarak kopyalayip gercek degerlerle guncelleyin.
 
-| Degisken              | Zorunluluk            | Aciklama                                                                                                  |
-| --------------------- | --------------------- | --------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`            | Production'da zorunlu | `development` veya `production`.                                                                          |
-| `PORT`                | Evet                  | HTTP portu. systemd arkasinda genelde `3000`.                                                             |
-| `APP_ORIGIN`          | Onerilir              | Virgulle ayrilmis izinli CORS origin listesi. Bos ise sadece same-origin/no-origin istekler kabul edilir. |
-| `TRUST_PROXY`         | Onerilir              | Reverse proxy arkasinda `1`.                                                                              |
-| `DATA_DIR`            | Production'da zorunlu | `panel.db` ve upload verileri icin kalici dizin.                                                          |
-| `BACKUP_DIR`          | Production'da zorunlu | `npm run backup` ciktilari icin dizin.                                                                    |
-| `ADMIN_KULLANICI_ADI` | Evet                  | `npm run seed` ile olusturulan admin kullanici adi.                                                       |
-| `ADMIN_SIFRE`         | Evet                  | Ilk admin sifresi; production'da varsayilan kullanmayin.                                                  |
-| `JWT_SECRET`          | Evet                  | JWT imzalama anahtari; uzun ve rastgele olmali.                                                           |
+| Degisken               | Zorunluluk            | Aciklama                                                                                                   |
+| ---------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`             | Production'da zorunlu | `development` veya `production`.                                                                           |
+| `PORT`                 | Evet                  | HTTP portu. systemd arkasinda genelde `3000`.                                                              |
+| `APP_ORIGIN`           | Onerilir              | Virgulle ayrilmis izinli CORS origin listesi. Bos ise sadece same-origin/no-origin istekler kabul edilir.  |
+| `TRUST_PROXY`          | Onerilir              | Reverse proxy arkasinda `1`.                                                                               |
+| `DATA_DIR`             | Production'da zorunlu | `panel.db` ve upload verileri icin kalici dizin.                                                           |
+| `BACKUP_DIR`           | Production'da zorunlu | `npm run backup` ciktilari icin dizin.                                                                     |
+| `ADMIN_KULLANICI_ADI`  | Evet                  | `npm run seed` ile olusturulan admin kullanici adi.                                                        |
+| `ADMIN_SIFRE`          | Evet                  | Ilk admin sifresi; production'da varsayilan kullanmayin.                                                   |
+| `JWT_SECRET`           | Evet                  | JWT imzalama anahtari; uzun ve rastgele olmali.                                                            |
+| `AUTH_COOKIE_SECURE`   | Opsiyonel             | `true` ise oturum cookie'si yalnizca HTTPS ile gonderilir. Bos ise production/HTTPS durumuna gore secilir. |
+| `AUTH_COOKIE_SAMESITE` | Opsiyonel             | `lax`, `strict` veya `none`. Panel/API farkli originlerdeyse HTTPS ile `none` kullanin.                    |
+
+Panel ve API farkli originlerde calisiyorsa `APP_ORIGIN` icine panel origin'ini ekleyin. Browser'in oturum cookie'sini kabul edip sonraki isteklerde gondermesi icin frontend `credentials: include`, CORS credential header'lari ve `AUTH_COOKIE_SAMESITE=none` + `AUTH_COOKIE_SECURE=true` birlikte gerekir.
 
 ## Test
 

@@ -11,7 +11,9 @@ function eskiBildirimleriTemizle() {
     if (simdi - sonTemizlik < 60 * 60 * 1000) return;
     sonTemizlik = simdi;
     try {
-        db.prepare("DELETE FROM bildirimler WHERE olusturulma_tarihi < datetime('now', '-14 days')").run();
+        db.prepare(
+            "DELETE FROM bildirimler WHERE okundu = 1 AND olusturulma_tarihi < datetime('now', '-14 days')"
+        ).run();
     } catch (_e) {}
 }
 

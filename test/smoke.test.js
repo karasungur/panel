@@ -65,7 +65,7 @@ test('GET /api returns API status', async (t) => {
     process.env.BACKUP_DIR = path.join(tmpDir, 'backups');
     process.env.ADMIN_KULLANICI_ADI = 'smoke-admin';
     process.env.ADMIN_SIFRE = 'smoke-admin-password';
-    process.env.JWT_SECRET = 'smoke-jwt-secret-with-enough-length-for-tests';
+    process.env.JWT_SECRET = 'm8Qw2zRt5Yp1Lc9Nv4Xa7Hb3Kf6Ds0Ge';
 
     delete require.cache[require.resolve('../server')];
     try {

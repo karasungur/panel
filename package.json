@@ -6,7 +6,7 @@
     "scripts": {
         "backup": "node scripts/backup.js",
         "check": "node scripts/check.js",
-        "coverage": "node --test --experimental-test-coverage --test-coverage-lines=40 --test-coverage-branches=50 --test-coverage-functions=35 test/*.test.js",
+        "coverage": "node --test --experimental-test-coverage --test-coverage-lines=45 --test-coverage-branches=50 --test-coverage-functions=35 test/*.test.js",
         "format": "prettier . --write",
         "format:check": "prettier . --check",
         "lint": "eslint .",

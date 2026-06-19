@@ -18,6 +18,99 @@ function bildirimOlustur(kullanici_id, tip, baslik, icerik, link) {
     }
 }
 
+let gorevKolonlariCache = null;
+
+function gorevKolonlari() {
+    if (!gorevKolonlariCache) {
+        gorevKolonlariCache = new Set(
+            db
+                .prepare('PRAGMA table_info(gorevler)')
+                .all()
+                .map((kolon) => kolon.name)
+        );
+    }
+    return gorevKolonlariCache;
+}
+
+function gorevKolonuVarMi(kolon) {
+    return gorevKolonlari().has(kolon);
+}
+
+function sonrakiTekrarTarihi(gorev) {
+    const eskiTarih = new Date(String(gorev.son_tarih));
+    if (Number.isNaN(eskiTarih.getTime())) return null;
+
+    const yeniTarih = new Date(eskiTarih);
+    if (gorev.tekrar === 'haftalik') yeniTarih.setDate(yeniTarih.getDate() + 7);
+    else if (gorev.tekrar === 'aylik') yeniTarih.setMonth(yeniTarih.getMonth() + 1);
+    else return null;
+
+    return yeniTarih.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function benzerTekrarliGorevVarMi(gorev, yeniTarihStr, sadeceEskiKayitlar) {
+    const eskiKayitKosulu = sadeceEskiKayitlar ? 'AND (parent_task_id IS NULL OR occurrence_due_at IS NULL)' : '';
+    const mevcut = db
+        .prepare(
+            `SELECT id FROM gorevler
+            WHERE kullanici_id = ? AND baslik = ? AND son_tarih = ? AND tekrar = ?
+              AND COALESCE(olusturan_id, 0) = COALESCE(?, 0)
+              ${eskiKayitKosulu}
+            LIMIT 1`
+        )
+        .get(gorev.kullanici_id, gorev.baslik, yeniTarihStr, gorev.tekrar, gorev.olusturan_id);
+
+    return !!mevcut;
+}
+
+function tekrarliGorevOlustur(gorev, yeniTarihStr) {
+    const parentAlanlariVar = gorevKolonuVarMi('parent_task_id') && gorevKolonuVarMi('occurrence_due_at');
+    const parentTaskId = parentAlanlariVar ? Number(gorev.parent_task_id || gorev.id) : null;
+
+    if (parentAlanlariVar) {
+        const mevcut = db
+            .prepare('SELECT id FROM gorevler WHERE parent_task_id = ? AND occurrence_due_at = ? LIMIT 1')
+            .get(parentTaskId, yeniTarihStr);
+        if (mevcut) return null;
+        if (benzerTekrarliGorevVarMi(gorev, yeniTarihStr, true)) return null;
+    } else {
+        if (benzerTekrarliGorevVarMi(gorev, yeniTarihStr, false)) return null;
+    }
+
+    const kolonlar = [
+        'kullanici_id',
+        'baslik',
+        'aciklama',
+        'oncelik',
+        'kategori',
+        'son_tarih',
+        'tekrar',
+        'olusturan_id'
+    ];
+    const degerler = [
+        gorev.kullanici_id,
+        gorev.baslik,
+        gorev.aciklama,
+        gorev.oncelik,
+        gorev.kategori,
+        yeniTarihStr,
+        gorev.tekrar,
+        gorev.olusturan_id
+    ];
+
+    if (parentAlanlariVar) {
+        kolonlar.push('parent_task_id', 'occurrence_due_at');
+        degerler.push(parentTaskId, yeniTarihStr);
+    }
+
+    const yerTutucular = kolonlar.map(() => '?').join(', ');
+    const sonuc = db
+        .prepare(`INSERT OR IGNORE INTO gorevler (${kolonlar.join(', ')}) VALUES (${yerTutucular})`)
+        .run(...degerler);
+
+    return sonuc.changes > 0 ? sonuc.lastInsertRowid : null;
+}
+
 router.get('/', tokenDogrula, (req, res) => {
     if (req.kullanici.rol === 'admin' || req.kullanici.rol === 'yardimci') {
         const g = db
@@ -131,42 +224,75 @@ router.put('/:id/durum', tokenDogrula, (req, res) => {
         return res.json({ mesaj: 'Görev zaten bu durumda.' });
     }
 
-    db.prepare('UPDATE gorevler SET durum = ? WHERE id = ?').run(durum, req.params.id);
+    let mesaj = 'Görev güncellendi.';
+    let gorevKayboldu = false;
+    /** @type {{ kullanici_id: number, baslik: string, icerik: string } | null} */
+    let tamamlandiBildirimi = null;
+    /** @type {{ kullanici_id: number, baslik: string, icerik: string } | null} */
+    let tekrarBildirimi = null;
 
-    // Tamamlandiginda olusturani bilgilendir + tekrarliysa yeni gorev olustur
-    if (durum === 'tamamlandi' && g.durum !== 'tamamlandi') {
-        if (g.olusturan_id && g.olusturan_id !== req.kullanici.id) {
-            const k = db.prepare('SELECT ad_soyad, kullanici_adi FROM kullanicilar WHERE id = ?').get(g.kullanici_id);
-            const ad = k?.ad_soyad || k?.kullanici_adi || 'Kullanıcı';
-            bildirimOlustur(
-                g.olusturan_id,
-                'gorev_tamamlandi',
-                'Görev tamamlandı: ' + g.baslik,
-                ad + ' atadığınız görevi tamamladı.',
-                '/panel.html#gorevler'
-            );
+    db.withTransaction(() => {
+        const guncelGorev = db.prepare('SELECT * FROM gorevler WHERE id = ?').get(req.params.id);
+        if (!guncelGorev) {
+            gorevKayboldu = true;
+            return;
         }
-        // Tekrarliysa yeni gorev olustur
-        if (g.tekrar && g.tekrar !== 'tek' && g.son_tarih) {
-            const eskiTarih = new Date(String(g.son_tarih));
-            const yeniTarih = new Date(eskiTarih);
-            if (g.tekrar === 'haftalik') yeniTarih.setDate(yeniTarih.getDate() + 7);
-            else if (g.tekrar === 'aylik') yeniTarih.setMonth(yeniTarih.getMonth() + 1);
-            const yeniTarihStr = yeniTarih.toISOString().slice(0, 19).replace('T', ' ');
-            db.prepare(
-                `INSERT INTO gorevler (kullanici_id, baslik, aciklama, oncelik, kategori, son_tarih, tekrar, olusturan_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-            ).run(g.kullanici_id, g.baslik, g.aciklama, g.oncelik, g.kategori, yeniTarihStr, g.tekrar, g.olusturan_id);
-            bildirimOlustur(
-                g.kullanici_id,
-                'gorev_tekrar',
-                '🔁 Tekrarlayan görev: ' + g.baslik,
-                'Yeni tekrar oluşturuldu. Son tarih: ' + yeniTarihStr.split(' ')[0],
-                '/panel.html#gorevler'
-            );
+        if (guncelGorev.durum === durum) {
+            mesaj = 'Görev zaten bu durumda.';
+            return;
         }
+
+        db.prepare('UPDATE gorevler SET durum = ? WHERE id = ?').run(durum, req.params.id);
+
+        // Tamamlandiginda olusturani bilgilendir + tekrarliysa yeni gorev olustur
+        if (durum === 'tamamlandi') {
+            if (guncelGorev.olusturan_id && guncelGorev.olusturan_id !== req.kullanici.id) {
+                const k = db
+                    .prepare('SELECT ad_soyad, kullanici_adi FROM kullanicilar WHERE id = ?')
+                    .get(guncelGorev.kullanici_id);
+                const ad = k?.ad_soyad || k?.kullanici_adi || 'Kullanıcı';
+                tamamlandiBildirimi = {
+                    kullanici_id: Number(guncelGorev.olusturan_id),
+                    baslik: 'Görev tamamlandı: ' + guncelGorev.baslik,
+                    icerik: ad + ' atadığınız görevi tamamladı.'
+                };
+            }
+
+            if (guncelGorev.tekrar && guncelGorev.tekrar !== 'tek' && guncelGorev.son_tarih) {
+                const yeniTarihStr = sonrakiTekrarTarihi(guncelGorev);
+                if (yeniTarihStr && tekrarliGorevOlustur(guncelGorev, yeniTarihStr)) {
+                    tekrarBildirimi = {
+                        kullanici_id: Number(guncelGorev.kullanici_id),
+                        baslik: '🔁 Tekrarlayan görev: ' + guncelGorev.baslik,
+                        icerik: 'Yeni tekrar oluşturuldu. Son tarih: ' + yeniTarihStr.split(' ')[0]
+                    };
+                }
+            }
+        }
+    });
+
+    if (gorevKayboldu) return res.status(404).json({ hata: 'Görev bulunamadı.' });
+
+    if (tamamlandiBildirimi) {
+        bildirimOlustur(
+            tamamlandiBildirimi.kullanici_id,
+            'gorev_tamamlandi',
+            tamamlandiBildirimi.baslik,
+            tamamlandiBildirimi.icerik,
+            '/panel.html#gorevler'
+        );
     }
-    res.json({ mesaj: 'Görev güncellendi.' });
+    if (tekrarBildirimi) {
+        bildirimOlustur(
+            tekrarBildirimi.kullanici_id,
+            'gorev_tekrar',
+            tekrarBildirimi.baslik,
+            tekrarBildirimi.icerik,
+            '/panel.html#gorevler'
+        );
+    }
+
+    res.json({ mesaj });
 });
 
 router.delete('/:id', tokenDogrula, adminVeyaYardimci, (req, res) => {

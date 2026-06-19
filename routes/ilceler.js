@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../database/db');
 const { tokenDogrula } = require('../middleware/auth');
 const { kayitFormatla } = require('../middleware/format');
+const { uploadMetadataIliskilendir } = require('../utils/upload-metadata');
 const router = express.Router();
 
 function kullanicininIlleri(kullaniciId) {
@@ -68,8 +69,9 @@ router.put('/:id', tokenDogrula, (req, res) => {
     const f = kayitFormatla({ baskan_ad_soyad, baskan_telefon, instagram_url, twitter_url, facebook_url, tiktok_url });
 
     try {
-        db.prepare(
-            `
+        db.withTransaction(() => {
+            db.prepare(
+                `
             UPDATE ilceler SET
                 ilce_adi        = COALESCE(?, ilce_adi),
                 baskan_ad_soyad = COALESCE(?, baskan_ad_soyad),
@@ -82,18 +84,26 @@ router.put('/:id', tokenDogrula, (req, res) => {
                 tiktok_url      = COALESCE(?, tiktok_url)
             WHERE id = ?
         `
-        ).run(
-            ilce_adi ?? null,
-            f.baskan_ad_soyad ?? null,
-            f.baskan_telefon ?? null,
-            baskan_tc ?? null,
-            baskan_foto ?? null,
-            f.instagram_url ?? null,
-            f.twitter_url ?? null,
-            f.facebook_url ?? null,
-            f.tiktok_url ?? null,
-            parseInt(req.params.id)
-        );
+            ).run(
+                ilce_adi ?? null,
+                f.baskan_ad_soyad ?? null,
+                f.baskan_telefon ?? null,
+                baskan_tc ?? null,
+                baskan_foto ?? null,
+                f.instagram_url ?? null,
+                f.twitter_url ?? null,
+                f.facebook_url ?? null,
+                f.tiktok_url ?? null,
+                parseInt(req.params.id)
+            );
+            if (baskan_foto) {
+                uploadMetadataIliskilendir(baskan_foto, {
+                    scope: 'entity',
+                    entityType: 'ilce',
+                    entityId: parseInt(req.params.id)
+                });
+            }
+        });
         res.json({ mesaj: 'İlçe güncellendi.' });
     } catch (err) {
         if (err.message.includes('UNIQUE')) {
@@ -150,9 +160,18 @@ router.post('/toplu', tokenDogrula, (req, res) => {
                         parseInt(s.id),
                         parseInt(il_id)
                     );
-                    if (sonuc.changes > 0) guncellenen++;
+                    if (sonuc.changes > 0) {
+                        if (s.baskan_foto) {
+                            uploadMetadataIliskilendir(s.baskan_foto, {
+                                scope: 'entity',
+                                entityType: 'ilce',
+                                entityId: parseInt(s.id)
+                            });
+                        }
+                        guncellenen++;
+                    }
                 } else if (s.ilce_adi && s.ilce_adi.trim()) {
-                    ekle.run(
+                    const sonuc = ekle.run(
                         parseInt(il_id),
                         s.ilce_adi.trim(),
                         f.baskan_ad_soyad || null,
@@ -164,6 +183,13 @@ router.post('/toplu', tokenDogrula, (req, res) => {
                         f.facebook_url || null,
                         f.tiktok_url || null
                     );
+                    if (s.baskan_foto) {
+                        uploadMetadataIliskilendir(s.baskan_foto, {
+                            scope: 'entity',
+                            entityType: 'ilce',
+                            entityId: sonuc.lastInsertRowid
+                        });
+                    }
                     eklenen++;
                 }
             } catch (_e) {

@@ -13,12 +13,36 @@ const DOCUMENTED_ENV_KEYS = [
     'TRUST_PROXY',
     'DATA_DIR',
     'BACKUP_DIR',
+    'BACKUP_RETENTION_DAYS',
     'ADMIN_KULLANICI_ADI',
     'ADMIN_SIFRE',
-    'JWT_SECRET'
+    'JWT_SECRET',
+    'AUTH_COOKIE_SECURE',
+    'AUTH_COOKIE_SAMESITE'
 ];
 const PRODUCTION_REQUIRED = ['PORT', 'DATA_DIR', 'BACKUP_DIR', 'ADMIN_KULLANICI_ADI', 'ADMIN_SIFRE', 'JWT_SECRET'];
-const PLACEHOLDER_PATTERN = /(admin123|gizli|degistir|change-me|example|varsayilan)/i;
+const MIN_ADMIN_PASSWORD_LENGTH = 12;
+const MIN_JWT_SECRET_LENGTH = 32;
+const PLACEHOLDER_PATTERN =
+    /(admin123|changeme|change-me|change_me|degistir|example|gizli|placeholder|secret|varsayilan)/i;
+const UNSAFE_ADMIN_PASSWORDS = new Set([
+    'admin',
+    'admin123',
+    'password',
+    'password123',
+    'panel',
+    'qwerty',
+    'test',
+    '123456',
+    '12345678',
+    '123456789'
+]);
+const DEFAULT_JWT_SECRETS = new Set([
+    'varsayilan-gizli-anahtar-degistirin',
+    'cok-gizli-jwt-anahtari-degistirin',
+    'change-me',
+    'changeme'
+]);
 
 const errors = [];
 const warnings = [];
@@ -57,8 +81,65 @@ function readEnvExampleKeys() {
     );
 }
 
+function envValue(key) {
+    return (process.env[key] || '').trim();
+}
+
 function isPlaceholder(value) {
     return !value || PLACEHOLDER_PATTERN.test(value);
+}
+
+function checkProductionAdminPassword() {
+    const password = envValue('ADMIN_SIFRE');
+    const username = envValue('ADMIN_KULLANICI_ADI').toLowerCase();
+    const normalizedPassword = password.toLowerCase();
+
+    if (isPlaceholder(password) || UNSAFE_ADMIN_PASSWORDS.has(normalizedPassword)) {
+        errors.push('Production icin ADMIN_SIFRE placeholder/default olmayan guclu bir deger olmalidir.');
+    }
+
+    if (password.length < MIN_ADMIN_PASSWORD_LENGTH) {
+        errors.push(`Production icin ADMIN_SIFRE en az ${MIN_ADMIN_PASSWORD_LENGTH} karakter olmalidir.`);
+    }
+
+    if (username && normalizedPassword === username) {
+        errors.push('Production icin ADMIN_SIFRE kullanici adi ile ayni olamaz.');
+    }
+}
+
+function checkProductionJwtSecret() {
+    const secret = envValue('JWT_SECRET');
+    const normalizedSecret = secret.toLowerCase();
+
+    if (isPlaceholder(secret) || DEFAULT_JWT_SECRETS.has(normalizedSecret)) {
+        errors.push('Production icin JWT_SECRET placeholder/default olmayan rastgele bir deger olmalidir.');
+    }
+
+    if (secret.length < MIN_JWT_SECRET_LENGTH) {
+        errors.push(`Production icin JWT_SECRET en az ${MIN_JWT_SECRET_LENGTH} karakter olmalidir.`);
+    }
+
+    if (secret && secret === envValue('ADMIN_SIFRE')) {
+        errors.push('Production icin JWT_SECRET ADMIN_SIFRE ile ayni olamaz.');
+    }
+}
+
+function checkTrustProxy() {
+    const trustProxy = envValue('TRUST_PROXY').toLowerCase();
+
+    if (process.env.NODE_ENV === 'production' && trustProxy === 'true') {
+        errors.push('Production icin TRUST_PROXY=true kullanmayin; sayisal hop degeri kullanin (ornegin 1).');
+    }
+}
+
+function checkBackupRetention() {
+    const rawValue = envValue('BACKUP_RETENTION_DAYS');
+    if (!rawValue) return;
+
+    const retentionDays = Number(rawValue);
+    if (!Number.isInteger(retentionDays) || retentionDays < 0) {
+        errors.push('BACKUP_RETENTION_DAYS negatif olmayan bir tam sayi olmalidir.');
+    }
 }
 
 function checkNodeVersion() {
@@ -96,10 +177,13 @@ function checkRuntimeEnv() {
     }
 
     for (const key of PRODUCTION_REQUIRED) {
-        if (isPlaceholder(process.env[key])) {
+        if (!envValue(key)) {
             errors.push(`Production icin ${key} gercek bir deger olmalidir.`);
         }
     }
+
+    checkProductionAdminPassword();
+    checkProductionJwtSecret();
 
     for (const key of ['DATA_DIR', 'BACKUP_DIR']) {
         if (process.env[key] && !path.isAbsolute(process.env[key])) {
@@ -128,6 +212,8 @@ function checkExpectedFiles() {
 checkNodeVersion();
 checkPackageEngine();
 checkEnvDocs();
+checkTrustProxy();
+checkBackupRetention();
 checkRuntimeEnv();
 checkExpectedFiles();
 

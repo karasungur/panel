@@ -69,7 +69,8 @@ router.put('/:id', tokenDogrula, (req, res) => {
         icerik === undefined ? null : icerikTemizle(icerik),
         req.params.id
     );
-    res.json({ mesaj: 'Not güncellendi.' });
+    const guncelNot = db.prepare('SELECT * FROM notlar WHERE id = ?').get(req.params.id);
+    res.json({ mesaj: 'Not güncellendi.', not: notTemizle(guncelNot) });
 });
 
 // DELETE /api/notlar/:id

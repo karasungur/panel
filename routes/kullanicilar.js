@@ -2,7 +2,13 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const db = require('../database/db');
 const { tokenDogrula, adminVeyaYardimci } = require('../middleware/auth');
+const { parolaHatasi } = require('../utils/security');
+const { uploadMetadataIliskilendir } = require('../utils/upload-metadata');
 const router = express.Router();
+
+function benzersizKisitHatasiMi(err) {
+    return err instanceof Error && err.message.includes('UNIQUE');
+}
 
 // Yardimciya da admin'in degistirme/silme yapamamasi icin kontrol
 function adminEtkilemeKontrolu(req, res, hedefId, izinVer) {
@@ -16,24 +22,44 @@ function adminEtkilemeKontrolu(req, res, hedefId, izinVer) {
 }
 
 router.get('/', tokenDogrula, adminVeyaYardimci, (req, res) => {
-    const kullanicilar = db
+    const satirlar = db
         .prepare(
             `
-        SELECT id, kullanici_adi, rol, ad_soyad, gorev_adi, renk, profil_foto, son_giris, olusturulma_tarihi
-        FROM kullanicilar ORDER BY id
+        SELECT
+            k.id, k.kullanici_adi, k.rol, k.ad_soyad, k.gorev_adi, k.renk, k.profil_foto, k.son_giris, k.olusturulma_tarihi,
+            i.id AS il_id, i.il_adi
+        FROM kullanicilar k
+        LEFT JOIN kullanici_iller ki ON ki.kullanici_id = k.id
+        LEFT JOIN iller i ON i.id = ki.il_id
+        ORDER BY k.id, i.plaka
     `
         )
         .all();
-    const ilSorgu = db.prepare(`
-        SELECT i.id, i.il_adi FROM kullanici_iller ki
-        JOIN iller i ON ki.il_id = i.id
-        WHERE ki.kullanici_id = ? ORDER BY i.plaka
-    `);
-    const sonuc = kullanicilar.map((k) => ({
-        ...k,
-        iller: k.rol === 'admin' || k.rol === 'yardimci' ? [] : ilSorgu.all(k.id)
-    }));
-    res.json(sonuc);
+
+    const kullanicilar = new Map();
+    for (const satir of satirlar) {
+        if (!kullanicilar.has(satir.id)) {
+            kullanicilar.set(satir.id, {
+                id: satir.id,
+                kullanici_adi: satir.kullanici_adi,
+                rol: satir.rol,
+                ad_soyad: satir.ad_soyad,
+                gorev_adi: satir.gorev_adi,
+                renk: satir.renk,
+                profil_foto: satir.profil_foto,
+                son_giris: satir.son_giris,
+                olusturulma_tarihi: satir.olusturulma_tarihi,
+                iller: []
+            });
+        }
+
+        const kullanici = kullanicilar.get(satir.id);
+        if (kullanici.rol !== 'admin' && kullanici.rol !== 'yardimci' && satir.il_id) {
+            kullanici.iller.push({ id: satir.il_id, il_adi: satir.il_adi });
+        }
+    }
+
+    res.json([...kullanicilar.values()]);
 });
 
 router.get('/ben', tokenDogrula, (req, res) => {
@@ -63,6 +89,9 @@ router.post('/', tokenDogrula, adminVeyaYardimci, (req, res) => {
         }
         yeniRol = rol;
     }
+    const sifreHatasi = parolaHatasi(sifre, { admin: yeniRol === 'admin', kullaniciAdi: kullanici_adi });
+    if (sifreHatasi) return res.status(400).json({ hata: sifreHatasi });
+
     const hash = bcrypt.hashSync(sifre, 10);
     try {
         const yeniId = db.withTransaction(() => {
@@ -80,22 +109,31 @@ router.post('/', tokenDogrula, adminVeyaYardimci, (req, res) => {
         });
         res.status(201).json({ mesaj: 'Kullanıcı oluşturuldu.', id: yeniId });
     } catch (err) {
-        if (err.message.includes('UNIQUE'))
-            return res.status(409).json({ hata: 'Bu kullanıcı adı zaten kullanılıyor.' });
-        res.status(500).json({ hata: 'Sunucu hatası.', detay: err.message });
+        if (benzersizKisitHatasiMi(err)) return res.status(409).json({ hata: 'Bu kullanıcı adı zaten kullanılıyor.' });
+        console.error('Kullanıcı oluşturma hatası:', err);
+        res.status(500).json({ hata: 'Sunucu hatası.' });
     }
 });
 
 router.put('/profil/guncelle', tokenDogrula, (req, res) => {
     const { ad_soyad, kullanici_adi, profil_foto } = req.body;
     try {
-        db.prepare(
-            'UPDATE kullanicilar SET ad_soyad = COALESCE(?, ad_soyad), kullanici_adi = COALESCE(?, kullanici_adi), profil_foto = COALESCE(?, profil_foto) WHERE id = ?'
-        ).run(ad_soyad ?? null, kullanici_adi || null, profil_foto ?? null, req.kullanici.id);
+        db.withTransaction(() => {
+            db.prepare(
+                'UPDATE kullanicilar SET ad_soyad = COALESCE(?, ad_soyad), kullanici_adi = COALESCE(?, kullanici_adi), profil_foto = COALESCE(?, profil_foto) WHERE id = ?'
+            ).run(ad_soyad ?? null, kullanici_adi || null, profil_foto ?? null, req.kullanici.id);
+            if (profil_foto) {
+                uploadMetadataIliskilendir(profil_foto, {
+                    scope: 'profile',
+                    entityType: 'profil',
+                    entityId: req.kullanici.id
+                });
+            }
+        });
         res.json({ mesaj: 'Profiliniz güncellendi.' });
     } catch (err) {
-        if (err.message.includes('UNIQUE'))
-            return res.status(409).json({ hata: 'Bu kullanıcı adı zaten kullanılıyor.' });
+        if (benzersizKisitHatasiMi(err)) return res.status(409).json({ hata: 'Bu kullanıcı adı zaten kullanılıyor.' });
+        console.error('Profil güncelleme hatası:', err);
         res.status(500).json({ hata: 'Sunucu hatası.' });
     }
 });
@@ -106,6 +144,9 @@ router.put('/profil/sifre', tokenDogrula, (req, res) => {
     const k = db.prepare('SELECT sifre FROM kullanicilar WHERE id = ?').get(req.kullanici.id);
     if (!k || !bcrypt.compareSync(eski_sifre, String(k.sifre || '')))
         return res.status(400).json({ hata: 'Mevcut şifreniz hatalı.' });
+    const sifreHatasi = parolaHatasi(yeni_sifre, { kullaniciAdi: req.kullanici.kullanici_adi });
+    if (sifreHatasi) return res.status(400).json({ hata: sifreHatasi });
+
     const hash = bcrypt.hashSync(yeni_sifre, 10);
     db.prepare('UPDATE kullanicilar SET sifre = ?, token_version = token_version + 1 WHERE id = ?').run(
         hash,
@@ -129,8 +170,9 @@ router.put('/:id', tokenDogrula, adminVeyaYardimci, (req, res) => {
             rolGuncelle = rol;
         }
         try {
-            db.prepare(
-                `UPDATE kullanicilar SET
+            db.withTransaction(() => {
+                db.prepare(
+                    `UPDATE kullanicilar SET
                 kullanici_adi = COALESCE(?, kullanici_adi),
                 ad_soyad = COALESCE(?, ad_soyad),
                 gorev_adi = COALESCE(?, gorev_adi),
@@ -139,21 +181,30 @@ router.put('/:id', tokenDogrula, adminVeyaYardimci, (req, res) => {
                 rol = COALESCE(?, rol),
                 token_version = token_version + CASE WHEN ? IS NULL THEN 0 ELSE 1 END
                 WHERE id = ?`
-            ).run(
-                kullanici_adi || null,
-                ad_soyad ?? null,
-                gorev_adi ?? null,
-                renk || null,
-                profil_foto ?? null,
-                rolGuncelle,
-                rolGuncelle,
-                req.params.id
-            );
+                ).run(
+                    kullanici_adi || null,
+                    ad_soyad ?? null,
+                    gorev_adi ?? null,
+                    renk || null,
+                    profil_foto ?? null,
+                    rolGuncelle,
+                    rolGuncelle,
+                    req.params.id
+                );
+                if (profil_foto) {
+                    uploadMetadataIliskilendir(profil_foto, {
+                        scope: 'profile',
+                        entityType: 'profil',
+                        entityId: parseInt(req.params.id)
+                    });
+                }
+            });
             res.json({ mesaj: 'Kullanıcı güncellendi.' });
         } catch (err) {
-            if (err.message.includes('UNIQUE'))
+            if (benzersizKisitHatasiMi(err))
                 return res.status(409).json({ hata: 'Bu kullanıcı adı zaten kullanılıyor.' });
-            res.status(500).json({ hata: 'Sunucu hatası.', detay: err.message });
+            console.error('Kullanıcı güncelleme hatası:', err);
+            res.status(500).json({ hata: 'Sunucu hatası.' });
         }
     });
 });
@@ -161,7 +212,10 @@ router.put('/:id', tokenDogrula, adminVeyaYardimci, (req, res) => {
 router.put('/:id/sifre', tokenDogrula, adminVeyaYardimci, (req, res) => {
     const { yeni_sifre } = req.body;
     if (!yeni_sifre) return res.status(400).json({ hata: 'Yeni şifre gereklidir.' });
-    adminEtkilemeKontrolu(req, res, req.params.id, () => {
+    adminEtkilemeKontrolu(req, res, req.params.id, (hedef) => {
+        const sifreHatasi = parolaHatasi(yeni_sifre, { admin: hedef.rol === 'admin' });
+        if (sifreHatasi) return res.status(400).json({ hata: sifreHatasi });
+
         const hash = bcrypt.hashSync(yeni_sifre, 10);
         db.prepare('UPDATE kullanicilar SET sifre = ?, token_version = token_version + 1 WHERE id = ?').run(
             hash,

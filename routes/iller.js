@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../database/db');
 const { tokenDogrula, adminVeyaYardimci } = require('../middleware/auth');
 const { kayitFormatla } = require('../middleware/format');
+const { uploadMetadataIliskilendir } = require('../utils/upload-metadata');
 const router = express.Router();
 
 // Bir kullanicinin gorebilecegi il id'lerini dondurur
@@ -139,9 +140,10 @@ router.put('/:id', tokenDogrula, (req, res) => {
     const f = kayitFormatla({ baskan_ad_soyad, baskan_telefon, instagram_url, twitter_url, facebook_url, tiktok_url });
 
     try {
-        const sonuc = db
-            .prepare(
-                `
+        const sonuc = db.withTransaction(() => {
+            const guncellemeSonucu = db
+                .prepare(
+                    `
             UPDATE iller SET
                 baskan_ad_soyad = COALESCE(?, baskan_ad_soyad),
                 baskan_telefon  = COALESCE(?, baskan_telefon),
@@ -153,18 +155,23 @@ router.put('/:id', tokenDogrula, (req, res) => {
                 tiktok_url      = COALESCE(?, tiktok_url)
             WHERE id = ?
         `
-            )
-            .run(
-                f.baskan_ad_soyad ?? null,
-                f.baskan_telefon ?? null,
-                baskan_tc ?? null,
-                baskan_foto ?? null,
-                f.instagram_url ?? null,
-                f.twitter_url ?? null,
-                f.facebook_url ?? null,
-                f.tiktok_url ?? null,
-                id
-            );
+                )
+                .run(
+                    f.baskan_ad_soyad ?? null,
+                    f.baskan_telefon ?? null,
+                    baskan_tc ?? null,
+                    baskan_foto ?? null,
+                    f.instagram_url ?? null,
+                    f.twitter_url ?? null,
+                    f.facebook_url ?? null,
+                    f.tiktok_url ?? null,
+                    id
+                );
+            if (guncellemeSonucu.changes > 0 && baskan_foto) {
+                uploadMetadataIliskilendir(baskan_foto, { scope: 'entity', entityType: 'il', entityId: id });
+            }
+            return guncellemeSonucu;
+        });
         if (sonuc.changes === 0) return res.status(404).json({ hata: 'İl bulunamadı.' });
         res.json({ mesaj: 'İl güncellendi.' });
     } catch (err) {
@@ -203,7 +210,12 @@ router.post('/toplu', tokenDogrula, (req, res) => {
                 f.tiktok_url || null,
                 ilId
             );
-            if (sonuc.changes > 0) guncellenen++;
+            if (sonuc.changes > 0) {
+                if (s.baskan_foto) {
+                    uploadMetadataIliskilendir(s.baskan_foto, { scope: 'entity', entityType: 'il', entityId: ilId });
+                }
+                guncellenen++;
+            }
         }
     });
     res.json({ mesaj: 'Toplu güncelleme tamamlandı.', guncellenen });

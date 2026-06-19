@@ -2779,7 +2779,7 @@
                             <div>
                                 <label style="font-size: 13px; font-weight: 600; color: var(--secondary)"
                                     >Profil Fotoğrafı</label
-                                ><input type="file" accept="image/*" onchange="profilFotoSec()" />
+                                ><input type="file" accept="image/*" onchange="profilFotoSec(event)" />
                             </div>
                         </div>
                         <input type="hidden" id="profil-foto" />
@@ -3031,7 +3031,7 @@
                 <input type="hidden" id="il-id" />
                 <div class="grup">Tanıtım ve Medya Başkanı</div>
                 <img class="foto-oniz" id="il-foto-oniz" />
-                <label>Fotoğraf</label><input type="file" accept="image/*" onchange="baskanFotoSec('il')" />
+                <label>Fotoğraf</label><input type="file" accept="image/*" onchange="baskanFotoSec(event, 'il')" />
                 <input type="hidden" id="il-baskan-foto" />
                 <label>Ad Soyad</label><input type="text" id="il-baskan-ad" placeholder="Ad Soyad" />
                 <label>Telefon</label><input type="text" id="il-baskan-telefon" placeholder="05XX XXX XX XX" />
@@ -3055,7 +3055,7 @@
                 ><input type="text" id="ilce-adi" placeholder="İlçe adı" />
                 <div class="grup">Tanıtım ve Medya Başkanı</div>
                 <img class="foto-oniz" id="ilce-foto-oniz" />
-                <label>Fotoğraf</label><input type="file" accept="image/*" onchange="baskanFotoSec('ilce')" />
+                <label>Fotoğraf</label><input type="file" accept="image/*" onchange="baskanFotoSec(event, 'ilce')" />
                 <input type="hidden" id="ilce-baskan-foto" />
                 <label>Ad Soyad</label><input type="text" id="ilce-baskan-ad" placeholder="Ad Soyad" />
                 <label>Telefon</label><input type="text" id="ilce-baskan-telefon" placeholder="05XX XXX XX XX" />
@@ -3332,16 +3332,7 @@
             function resimUrl(url) {
                 const u = guvenliUrl(url);
                 if (!u) return '';
-                try {
-                    const parsed = new URL(u);
-                    if (parsed.origin === window.location.origin && parsed.pathname.startsWith('/uploads/')) {
-                        const t = localStorage.getItem('token');
-                        if (t) parsed.searchParams.set('token', t);
-                    }
-                    return parsed.href;
-                } catch (e) {
-                    return '';
-                }
+                return u;
             }
             function guvenliRenk(renk, varsayilan = '#24467c') {
                 const r = metin(renk).trim();
@@ -3399,7 +3390,15 @@
                     '<label class="foto-btn">📷<input type="file" accept="image/*" style="display:none" onchange="topluFotoSec(this)"></label></td>'
                 );
             }
-            const token = localStorage.getItem('token');
+            function oturumBilgileriniTemizle() {
+                localStorage.removeItem('kullanici');
+                localStorage.removeItem('token');
+            }
+            function loginSayfasinaGit() {
+                oturumBilgileriniTemizle();
+                window.location.href = '/';
+            }
+
             let kullanici = guvenliJsonParse(localStorage.getItem('kullanici'), {});
             let seciliIlId = null,
                 seciliIlAdi = '';
@@ -3416,9 +3415,8 @@
                 '#e65100'
             ];
             let secilenRenk = RENKLER[1];
-            if (!token || !kullanici || typeof kullanici !== 'object') {
-                localStorage.clear();
-                window.location.href = '/';
+            if (!kullanici || typeof kullanici !== 'object' || !guvenliId(kullanici.id)) {
+                loginSayfasinaGit();
             }
 
             function toast(m) {
@@ -3483,8 +3481,8 @@
             }
 
             async function apicagir(url, method = 'GET', body = null) {
-                const ayar = { method, headers: { Authorization: 'Bearer ' + token } };
-                if (body) {
+                const ayar = { method, credentials: 'include', headers: {} };
+                if (body !== null && body !== undefined) {
                     ayar.headers['Content-Type'] = 'application/json';
                     ayar.body = JSON.stringify(body);
                 }
@@ -3495,8 +3493,7 @@
                     return { hata: 'Sunucuya bağlanılamadı.' };
                 }
                 if (c.status === 401) {
-                    localStorage.clear();
-                    window.location.href = '/';
+                    loginSayfasinaGit();
                     return { hata: 'Oturum süresi doldu.' };
                 }
                 let veri = null;
@@ -3807,6 +3804,7 @@
                     'ilce-facebook',
                     'ilce-tiktok'
                 ].forEach((i) => (document.getElementById(i).value = ''));
+                document.getElementById('ilce-il-id').value = guvenliId(seciliIlId);
                 document.getElementById('ilce-foto-oniz').style.display = 'none';
                 document.getElementById('ilce-modal').classList.add('aktif');
             }
@@ -3818,6 +3816,7 @@
                 if (!ic) return;
                 document.getElementById('ilce-modal-baslik').textContent = metin(ic.ilce_adi) + ' — Düzenle';
                 document.getElementById('ilce-id').value = icId;
+                document.getElementById('ilce-il-id').value = guvenliId(ic.il_id || seciliIlId);
                 document.getElementById('ilce-adi').value = ic.ilce_adi;
                 document.getElementById('ilce-baskan-ad').value = ic.baskan_ad_soyad || '';
                 document.getElementById('ilce-baskan-telefon').value = ic.baskan_telefon || '';
@@ -3875,8 +3874,8 @@
                 }
                 ilSecVeIlceleriGoster(seciliIlId, seciliIlAdi);
             }
-            async function baskanFotoSec(tip) {
-                const f = event.target.files[0];
+            async function baskanFotoSec(e, tip) {
+                const f = e && e.target && e.target.files ? e.target.files[0] : null;
                 if (!f) return;
                 const r = new FileReader();
                 r.onload = async () => {
@@ -4207,8 +4206,8 @@
                 const o = document.getElementById('profil-foto-oniz');
                 resimKaynakAta(o, kullanici.profil_foto);
             }
-            async function profilFotoSec() {
-                const f = event.target.files[0];
+            async function profilFotoSec(e) {
+                const f = e && e.target && e.target.files ? e.target.files[0] : null;
                 if (!f) return;
                 const r = new FileReader();
                 r.onload = async () => {
@@ -4255,7 +4254,8 @@
                 }
                 document.getElementById('profil-eski-sifre').value = '';
                 document.getElementById('profil-yeni-sifre').value = '';
-                toast('Şifreniz güncellendi.');
+                toast('Şifreniz güncellendi. Lütfen tekrar giriş yapın.');
+                setTimeout(loginSayfasinaGit, 900);
             }
             async function gorevleriYukle() {
                 const gs = await apicagir('/api/gorevler');
@@ -4494,15 +4494,26 @@
                 chatYukle();
                 toast('Sohbet sıfırlandı.');
             }
-            let excelTip = 'il',
-                excelSonuclar = [];
+            let excelTip = 'il';
+            let excelState = { requestId: 0, importId: '', tip: 'il', uygulanabilir: false };
+            function excelStateSifirla(requestIdArtir) {
+                if (requestIdArtir !== false) excelState.requestId++;
+                excelState.importId = '';
+                excelState.tip = excelTip;
+                excelState.uygulanabilir = false;
+                const btn = document.getElementById('excel-uygula-btn');
+                if (btn) {
+                    btn.style.display = 'none';
+                    btn.disabled = false;
+                }
+            }
             function excelModalAc(tip) {
                 excelTip = guvenliExcelTip(tip);
+                excelStateSifirla(true);
                 document.getElementById('excel-modal-baslik').textContent =
                     (excelTip === 'il' ? 'İl' : 'İlçe') + ' Excel Yükle';
                 document.getElementById('excel-dosya').value = '';
                 document.getElementById('excel-sonuc').innerHTML = '';
-                document.getElementById('excel-uygula-btn').style.display = 'none';
                 document.getElementById('sablon-link').onclick = (e) => {
                     e.preventDefault();
                     sablonIndir(excelTip);
@@ -4514,15 +4525,14 @@
                 let r;
                 try {
                     r = await fetch('/api/excel/sablon?tip=' + encodeURIComponent(guvenliTip), {
-                        headers: { Authorization: 'Bearer ' + token }
+                        credentials: 'include'
                     });
                 } catch (e) {
                     toast('Şablon indirilemedi.');
                     return;
                 }
                 if (r.status === 401) {
-                    localStorage.clear();
-                    window.location.href = '/';
+                    loginSayfasinaGit();
                     return;
                 }
                 if (!r.ok) {
@@ -4539,9 +4549,16 @@
             }
             async function excelOnizle() {
                 const f = document.getElementById('excel-dosya').files[0];
-                if (!f) return;
+                const istekId = ++excelState.requestId;
+                const istekTip = guvenliExcelTip(excelTip);
+                excelState.importId = '';
+                excelState.tip = istekTip;
+                excelState.uygulanabilir = false;
                 document.getElementById('excel-uygula-btn').style.display = 'none';
+                if (!f) return;
                 if (!f.name.toLowerCase().endsWith('.xlsx')) {
+                    excelStateSifirla(true);
+                    document.getElementById('excel-dosya').value = '';
                     document.getElementById('excel-sonuc').innerHTML =
                         '<p style="color:var(--error)">Lütfen indirilen .xlsx şablonunu yükleyin.</p>';
                     return;
@@ -4550,13 +4567,29 @@
                     '<p style="color:var(--secondary)">Analiz ediliyor...</p>';
                 const r = new FileReader();
                 r.onload = async () => {
-                    const s = await apicagir('/api/excel/onizle', 'POST', { dosya: r.result, tip: excelTip });
+                    if (istekId !== excelState.requestId || istekTip !== guvenliExcelTip(excelTip)) return;
+                    let s;
+                    try {
+                        s = await apicagir('/api/excel/onizle', 'POST', { dosya: r.result, tip: istekTip });
+                    } catch (e) {
+                        if (istekId !== excelState.requestId) return;
+                        excelStateSifirla(false);
+                        document.getElementById('excel-sonuc').innerHTML =
+                            '<p style="color:var(--error)">Excel dosyası analiz edilemedi.</p>';
+                        return;
+                    }
+                    if (istekId !== excelState.requestId || istekTip !== guvenliExcelTip(excelTip)) return;
                     if (s.hata) {
+                        excelStateSifirla(false);
                         document.getElementById('excel-sonuc').innerHTML =
                             '<p style="color:var(--error)">' + esc(s.hata) + '</p>';
                         return;
                     }
-                    excelSonuclar = s.sonuclar;
+                    excelState.importId = s.importId || '';
+                    excelState.tip = guvenliExcelTip(s.tip || s.sablon || istekTip);
+                    excelState.uygulanabilir = Boolean(
+                        s.uygulanabilir && excelState.importId && excelState.tip === istekTip
+                    );
                     let h =
                         '<div style="background:var(--success-bg);color:var(--success);padding:10px;border-radius:8px;font-size:13px;margin-bottom:10px"><b>' +
                         esc(s.toplam) +
@@ -4568,26 +4601,60 @@
                             ' satırda sorun:</b><br>' +
                             s.sorunlar
                                 .slice(0, 8)
-                                .map((p) => 'Satır ' + esc(p.satir) + ': ' + esc(p.sorun))
+                                .map(
+                                    (p) =>
+                                        (Number(p.satir) > 0 ? 'Satır ' + esc(p.satir) : 'Genel') + ': ' + esc(p.sorun)
+                                )
                                 .join('<br>') +
                             '</div>';
                     }
+                    if (!excelState.uygulanabilir) {
+                        h +=
+                            '<div style="background:var(--error-container);color:var(--on-error-container);padding:10px;border-radius:8px;font-size:12px;margin-bottom:10px">Kritik sorunlar giderilmeden içe aktarma yapılamaz.</div>';
+                    }
                     document.getElementById('excel-sonuc').innerHTML = h;
-                    if (s.toplam > 0) document.getElementById('excel-uygula-btn').style.display = 'block';
+                    if (excelState.uygulanabilir) document.getElementById('excel-uygula-btn').style.display = 'block';
+                };
+                r.onerror = () => {
+                    if (istekId !== excelState.requestId) return;
+                    excelStateSifirla(false);
+                    document.getElementById('excel-sonuc').innerHTML =
+                        '<p style="color:var(--error)">Excel dosyası okunamadı.</p>';
                 };
                 r.readAsDataURL(f);
             }
             async function excelUygula() {
-                const s = await apicagir('/api/excel/uygula', 'POST', {
-                    sonuclar: excelSonuclar,
-                    tip: guvenliExcelTip(excelTip)
-                });
+                const importId = excelState.importId;
+                const tip = guvenliExcelTip(excelTip);
+                if (!excelState.uygulanabilir || !importId || excelState.tip !== tip) {
+                    excelStateSifirla(false);
+                    toast('Güncel bir Excel önizlemesi bulunamadı.');
+                    return;
+                }
+                const istekId = excelState.requestId;
+                const btn = document.getElementById('excel-uygula-btn');
+                btn.disabled = true;
+                let s;
+                try {
+                    s = await apicagir('/api/excel/uygula', 'POST', {
+                        importId,
+                        tip
+                    });
+                } catch (e) {
+                    btn.disabled = false;
+                    toast('Excel içe aktarma uygulanamadı.');
+                    return;
+                }
+                if (istekId !== excelState.requestId || importId !== excelState.importId) return;
+                btn.disabled = false;
                 if (s.hata) {
+                    excelStateSifirla(false);
                     toast(s.hata);
                     return;
                 }
+                excelStateSifirla(false);
                 modalKapat('excel-modal');
-                toast(s.basarili + ' kayıt güncellendi.');
+                toast(s.mesaj || s.basarili + ' kayıt güncellendi.');
                 illeriYukle();
                 if (seciliIlId) ilSecVeIlceleriGoster(seciliIlId, seciliIlAdi);
             }
@@ -4599,14 +4666,13 @@
                 if (ilIds && ilIds.length) url += '&il_ids=' + ilIds.map(guvenliId).filter(Boolean).join(',');
                 let r;
                 try {
-                    r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+                    r = await fetch(url, { credentials: 'include' });
                 } catch (e) {
                     toast('Excel oluşturulamadı.');
                     return;
                 }
                 if (r.status === 401) {
-                    localStorage.clear();
-                    window.location.href = '/';
+                    loginSayfasinaGit();
                     return;
                 }
                 if (!r.ok) {
@@ -4710,10 +4776,18 @@
                 await excelDisaAktar(tip, [haritaSeciliIl.id]);
             }
             function modalKapat(id) {
+                if (id === 'excel-modal') {
+                    excelStateSifirla(true);
+                    document.getElementById('excel-dosya').value = '';
+                    document.getElementById('excel-sonuc').innerHTML = '';
+                }
                 document.getElementById(id).classList.remove('aktif');
             }
-            function cikisYap() {
-                localStorage.clear();
+            async function cikisYap() {
+                try {
+                    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                } catch (e) {}
+                oturumBilgileriniTemizle();
                 window.location.href = '/';
             }
 
@@ -4809,7 +4883,7 @@
                                   });
                             const bId = guvenliId(b.id);
                             k.innerHTML =
-                                '<button class="b-sil" onclick="event.stopPropagation();bildirimSil(' +
+                                '<button class="b-sil" onclick="bildirimSil(event, ' +
                                 bId +
                                 ')" title="Sil">×</button>' +
                                 '<div class="b-baslik">' +
@@ -4866,7 +4940,9 @@
                 toast('Tüm bildirimler okundu olarak işaretlendi.');
             }
 
-            async function bildirimSil(id) {
+            async function bildirimSil(e, id) {
+                if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+                if (id === undefined) id = e;
                 const bId = guvenliId(id);
                 if (!bId) return;
                 await apicagir('/api/bildirimler/' + bId, 'DELETE');
@@ -5053,10 +5129,10 @@
                     '</div>' +
                     '<div class="b-aksiyon">' +
                     '<button data-sohbet-sil title="Sohbeti sil">🗑</button>' +
-                    '<button onclick="event.stopPropagation();sohbetKucult(' +
+                    '<button onclick="sohbetKucult(event, ' +
                     kisiIdSafe +
                     ')" title="Küçült">−</button>' +
-                    '<button onclick="event.stopPropagation();sohbetKapat(' +
+                    '<button onclick="sohbetKapat(event, ' +
                     kisiIdSafe +
                     ')" title="Kapat">✕</button>' +
                     '</div>' +
@@ -5226,13 +5302,17 @@
                 inp.focus();
             }
 
-            function sohbetKucult(kisiId) {
+            function sohbetKucult(e, kisiId) {
+                if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+                if (kisiId === undefined) kisiId = e;
                 const kisiIdSafe = guvenliId(kisiId);
                 if (!acikSohbetler[kisiIdSafe]) return;
                 acikSohbetler[kisiIdSafe].pencere.classList.toggle('kucuk');
             }
 
-            function sohbetKapat(kisiId) {
+            function sohbetKapat(e, kisiId) {
+                if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+                if (kisiId === undefined) kisiId = e;
                 const kisiIdSafe = guvenliId(kisiId);
                 if (!acikSohbetler[kisiIdSafe]) return;
                 acikSohbetler[kisiIdSafe].pencere.remove();
@@ -5322,6 +5402,9 @@
             let notlar = [];
             let aktifNot = null;
             let notKaydetTimer = null;
+            let notBekleyenSnapshot = null;
+            let notKaydetSeq = 0;
+            let notSecimSeq = 0;
 
             async function notlariYukle() {
                 try {
@@ -5373,7 +5456,7 @@
                         '<div class="not-tarih">' +
                         esc(tarihStr) +
                         '</div>' +
-                        '<button class="not-sil" onclick="event.stopPropagation();notSil(' +
+                        '<button class="not-sil" onclick="notSil(event, ' +
                         notId +
                         ')">×</button>';
                     k.onclick = () => notSec(notId);
@@ -5381,8 +5464,16 @@
                 });
             }
 
-            function notSec(id) {
+            async function notSec(id) {
                 const notId = guvenliId(id);
+                if (!notId) return;
+                const secimSeq = ++notSecimSeq;
+                const oncekiNotId = aktifNot ? guvenliId(aktifNot.id) : 0;
+                if (oncekiNotId && oncekiNotId !== notId) {
+                    await notBekleyenKaydiFlushEt();
+                    notKaydetSeq++;
+                }
+                if (secimSeq !== notSecimSeq) return;
                 const n = notlar.find((x) => guvenliId(x.id) === notId);
                 if (!n) return;
                 aktifNot = n;
@@ -5395,19 +5486,21 @@
             }
 
             async function notYeni() {
+                await notBekleyenKaydiFlushEt();
                 const s = await apicagir('/api/notlar', 'POST', { baslik: 'Yeni Not', icerik: '' });
                 if (s.hata) {
                     toast(s.hata);
                     return;
                 }
                 notlar.unshift(s);
-                aktifNot = s;
                 notlariListele();
                 notSec(s.id);
                 setTimeout(() => document.getElementById('not-baslik').focus(), 100);
             }
 
-            async function notSil(id) {
+            async function notSil(e, id) {
+                if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+                if (id === undefined) id = e;
                 const notId = guvenliId(id);
                 if (!notId) return;
                 if (!confirm('Bu notu silmek istediğinize emin misiniz?')) return;
@@ -5416,6 +5509,7 @@
                     toast(s.hata);
                     return;
                 }
+                if (aktifNot && guvenliId(aktifNot.id) === notId) notBekleyenKaydiIptalEt();
                 notlar = notlar.filter((n) => guvenliId(n.id) !== notId);
                 if (aktifNot && guvenliId(aktifNot.id) === notId) aktifNot = null;
                 notlariListele();
@@ -5427,31 +5521,91 @@
                 }
             }
 
-            function notKaydetGecikmeli() {
-                if (!aktifNot) return;
-                document.getElementById('not-kaydet-durum').textContent = 'Yazılıyor...';
-                clearTimeout(notKaydetTimer);
-                notKaydetTimer = setTimeout(notKaydet, 800);
+            function notSnapshotAl() {
+                if (!aktifNot) return null;
+                const notId = guvenliId(aktifNot.id);
+                if (!notId) return null;
+                return {
+                    id: notId,
+                    baslik: document.getElementById('not-baslik').value || 'Başlıksız',
+                    icerik: document.getElementById('not-icerik').innerHTML
+                };
             }
 
-            async function notKaydet() {
-                if (!aktifNot) return;
-                const notId = guvenliId(aktifNot.id);
+            function notKayitAl(s, snapshot) {
+                const kayit = s && s.not && typeof s.not === 'object' ? s.not : s && guvenliId(s.id) ? s : null;
+                if (kayit) return { ...kayit, id: guvenliId(kayit.id) || snapshot.id };
+                return {
+                    ...snapshot,
+                    guncellenme_tarihi: new Date().toISOString().slice(0, 19).replace('T', ' ')
+                };
+            }
+
+            function notBekleyenKaydiIptalEt(seqArtir = true) {
+                clearTimeout(notKaydetTimer);
+                notKaydetTimer = null;
+                notBekleyenSnapshot = null;
+                if (seqArtir) notKaydetSeq++;
+            }
+
+            async function notBekleyenKaydiFlushEt() {
+                if (!notKaydetTimer || !notBekleyenSnapshot) return;
+                const snapshot = notBekleyenSnapshot;
+                notBekleyenKaydiIptalEt(false);
+                await notKaydet(snapshot, ++notKaydetSeq);
+            }
+
+            function notKaydetGecikmeli() {
+                const snapshot = notSnapshotAl();
+                if (!snapshot) return;
+                notBekleyenSnapshot = snapshot;
+                const seq = ++notKaydetSeq;
+                document.getElementById('not-kaydet-durum').textContent = 'Yazılıyor...';
+                clearTimeout(notKaydetTimer);
+                notKaydetTimer = setTimeout(() => {
+                    notKaydetTimer = null;
+                    const bekleyen = notBekleyenSnapshot;
+                    notBekleyenSnapshot = null;
+                    notKaydet(bekleyen, seq);
+                }, 800);
+            }
+
+            async function notKaydet(snapshot = null, seq = null) {
+                if (!snapshot) {
+                    snapshot = notSnapshotAl();
+                    notBekleyenKaydiIptalEt(false);
+                    seq = ++notKaydetSeq;
+                }
+                if (!snapshot) return;
+                const notId = guvenliId(snapshot.id);
                 if (!notId) return;
-                const baslik = document.getElementById('not-baslik').value || 'Başlıksız';
-                const icerik = document.getElementById('not-icerik').innerHTML;
-                document.getElementById('not-kaydet-durum').textContent = 'Kaydediliyor...';
-                const s = await apicagir('/api/notlar/' + notId, 'PUT', { baslik, icerik });
+                const aktifId = aktifNot ? guvenliId(aktifNot.id) : 0;
+                if (seq === notKaydetSeq && aktifId === notId) {
+                    document.getElementById('not-kaydet-durum').textContent = 'Kaydediliyor...';
+                }
+                const s = await apicagir('/api/notlar/' + notId, 'PUT', {
+                    baslik: snapshot.baslik,
+                    icerik: snapshot.icerik
+                });
                 if (s.hata) {
-                    document.getElementById('not-kaydet-durum').textContent = 'Hata: ' + s.hata;
+                    if (seq === notKaydetSeq && aktifNot && guvenliId(aktifNot.id) === notId) {
+                        document.getElementById('not-kaydet-durum').textContent = 'Hata: ' + s.hata;
+                    }
                     return;
                 }
-                aktifNot.baslik = baslik;
-                aktifNot.icerik = icerik;
-                aktifNot.guncellenme_tarihi = new Date().toISOString().slice(0, 19).replace('T', ' ');
-                notlar = [aktifNot, ...notlar.filter((n) => guvenliId(n.id) !== notId)];
-                notlariListele();
-                document.getElementById('not-kaydet-durum').textContent = 'Kayıtlı ✓';
+                const kayit = notKayitAl(s, snapshot);
+                const halaAktif = aktifNot && guvenliId(aktifNot.id) === notId;
+                const guncelCevap = seq === notKaydetSeq;
+                if (guncelCevap || !halaAktif) {
+                    notlar = [kayit, ...notlar.filter((n) => guvenliId(n.id) !== notId)];
+                }
+                if (seq === notKaydetSeq && halaAktif) {
+                    aktifNot = kayit;
+                    document.getElementById('not-baslik').value = kayit.baslik || '';
+                    document.getElementById('not-icerik').innerHTML = kayit.icerik || '';
+                    document.getElementById('not-kaydet-durum').textContent = 'Kayıtlı ✓';
+                }
+                if (guncelCevap || !halaAktif) notlariListele();
             }
 
             function notFormat(komut, deger) {
@@ -5753,10 +5907,14 @@
                 if (!haritaSeciliIl) return;
                 const icId = guvenliId(id);
                 if (!icId) return;
+                const ilId = guvenliId(haritaSeciliIl.id);
+                if (!ilId) return;
                 // Mevcut ilceDuzenle fonksiyonu seciliIlId'yi kullanir, gecici set edelim
-                seciliIlId = haritaSeciliIl.id;
+                seciliIlId = ilId;
                 seciliIlAdi = haritaSeciliIl.adi;
+                document.getElementById('ilce-il-id').value = ilId;
                 await ilceDuzenle(icId);
+                document.getElementById('ilce-il-id').value = ilId;
                 // Modal kapatildiginda haritadaki paneli yenilemek icin
                 // ilceKaydet zaten ilSecVeIlceleriGoster cagiriyor, biz haritadan geliyoruz, geri yukleyelim
             }

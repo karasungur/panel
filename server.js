@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet').default;
 const path = require('path');
+const { productionTrustProxyHatasi } = require('./utils/security');
 
 const authRouter = require('./routes/auth');
 const illerRouter = require('./routes/iller');
@@ -25,6 +26,8 @@ function trustProxyAyariniAl() {
     if (!deger) return false;
 
     const kucukDeger = deger.toLowerCase();
+    const hata = process.env.NODE_ENV === 'production' ? productionTrustProxyHatasi(deger) : null;
+    if (hata) throw new Error(hata);
     if (kucukDeger === 'false' || kucukDeger === '0') return false;
     if (kucukDeger === 'true') return true;
 
@@ -96,7 +99,7 @@ app.use(
         }
 
         if (izinliOriginler.has(origin) || ayniOriginMi(req, origin)) {
-            return callback(null, { ...temelAyarlar, origin });
+            return callback(null, { ...temelAyarlar, credentials: true, origin });
         }
 
         const err = new Error('CORS origin engellendi.');

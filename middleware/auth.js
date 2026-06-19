@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
+const { jwtSecretHatasi } = require('../utils/security');
 
 const VARSAYILAN_JWT_SECRET = 'varsayilan-gizli-anahtar-degistirin';
-const MIN_JWT_SECRET_UZUNLUK = 32;
+const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'panel_oturum';
 
 function uretimOrtamiMi() {
     return process.env.NODE_ENV === 'production';
@@ -9,12 +10,10 @@ function uretimOrtamiMi() {
 
 function jwtSecretAl() {
     const secret = (process.env.JWT_SECRET || '').trim();
-    const zayifSecret = !secret || secret === VARSAYILAN_JWT_SECRET || secret.length < MIN_JWT_SECRET_UZUNLUK;
+    const secretHatasi = secret ? jwtSecretHatasi(secret) : 'JWT_SECRET zorunludur.';
 
-    if (uretimOrtamiMi() && zayifSecret) {
-        throw new Error(
-            `JWT_SECRET production ortaminda zorunlu ve en az ${MIN_JWT_SECRET_UZUNLUK} karakter olmalidir.`
-        );
+    if (uretimOrtamiMi() && secretHatasi) {
+        throw new Error(`JWT_SECRET production ortaminda gecersiz: ${secretHatasi}`);
     }
 
     if (!secret) {
@@ -22,10 +21,8 @@ function jwtSecretAl() {
         return VARSAYILAN_JWT_SECRET;
     }
 
-    if (secret === VARSAYILAN_JWT_SECRET || secret.length < MIN_JWT_SECRET_UZUNLUK) {
-        console.warn(
-            `[auth] JWT_SECRET zayif gorunuyor; production ortaminda en az ${MIN_JWT_SECRET_UZUNLUK} karakter kullanin.`
-        );
+    if (secretHatasi) {
+        console.warn(`[auth] JWT_SECRET zayif gorunuyor; production ortaminda reddedilir: ${secretHatasi}`);
     }
 
     return secret;
@@ -50,9 +47,34 @@ function bearerTokenAl(req) {
     return token;
 }
 
+function cookieTokenAl(req) {
+    const cookieHeader = req.headers.cookie;
+    if (!cookieHeader) return null;
+
+    for (const parca of cookieHeader.split(';')) {
+        const [ad, ...degerParcalari] = parca.trim().split('=');
+        if (ad !== AUTH_COOKIE_NAME) continue;
+
+        const deger = degerParcalari.join('=');
+        if (!deger) return null;
+
+        try {
+            return decodeURIComponent(deger);
+        } catch (_err) {
+            return deger;
+        }
+    }
+
+    return null;
+}
+
+function istekTokeniAl(req) {
+    return bearerTokenAl(req) || cookieTokenAl(req);
+}
+
 // Her istekte JWT token'i dogrular
 function tokenDogrula(req, res, next) {
-    const token = bearerTokenAl(req);
+    const token = istekTokeniAl(req);
     if (!token) return res.status(401).json({ hata: 'Yetkilendirme gerekli. Lutfen giris yapin.' });
 
     let cozulmus;
@@ -116,4 +138,4 @@ function adminVeyaYardimci(req, res, next) {
     next();
 }
 
-module.exports = { tokenDogrula, sadeceAdmin, adminVeyaYardimci, JWT_SECRET };
+module.exports = { tokenDogrula, sadeceAdmin, adminVeyaYardimci, JWT_SECRET, AUTH_COOKIE_NAME };

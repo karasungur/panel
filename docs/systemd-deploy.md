@@ -20,22 +20,31 @@ node -v
 ## Dizinler ve kullanici
 
 ```bash
-sudo useradd --system --home /opt/panel --shell /usr/sbin/nologin panel
-sudo install -d -o panel -g panel /opt/panel
-sudo install -d -o panel -g panel /var/lib/panel
-sudo install -d -o panel -g panel /var/backups/panel
+sudo useradd --system --home /var/lib/panel --shell /usr/sbin/nologin panel
+sudo install -d -m 0755 -o root -g root /opt/panel
+sudo install -d -m 0750 -o panel -g panel /var/lib/panel
+sudo install -d -m 0750 -o panel -g panel /var/backups/panel
 sudo install -d -m 0750 -o root -g panel /etc/panel
 ```
 
-Uygulamayi `/opt/panel` altina kopyalayin. Ornek:
+`/opt/panel` root-owned ve servis kullanicisi icin read-only kalmalidir. `panel` kullanicisi yalnizca
+`/var/lib/panel` ve `/var/backups/panel` altina yazabilmelidir.
+
+Uygulamayi `/opt/panel` altina kopyalayin; runtime verilerini rsync ile tasimayin:
 
 ```bash
-sudo rsync -a --delete \
-  --exclude node_modules \
-  --exclude .git \
-  --exclude .env \
+sudo rsync -a --delete --chown=root:root \
+  --exclude 'node_modules' \
+  --exclude '.git' \
+  --exclude '.env' \
+  --exclude 'database/panel.db' \
+  --exclude 'database/panel.db-*' \
+  --exclude 'database/backups/' \
+  --exclude 'database/uploads/' \
+  --exclude 'public/uploads/' \
   ./ /opt/panel/
-sudo chown -R panel:panel /opt/panel /var/lib/panel /var/backups/panel
+sudo find /opt/panel -type d -exec chmod 0755 {} +
+sudo find /opt/panel -type f -exec chmod 0644 {} +
 ```
 
 ## Ortam dosyasi
@@ -49,10 +58,15 @@ APP_ORIGIN=https://panel.example.com
 TRUST_PROXY=1
 DATA_DIR=/var/lib/panel
 BACKUP_DIR=/var/backups/panel
+BACKUP_RETENTION_DAYS=14
 ADMIN_KULLANICI_ADI=admin
 ADMIN_SIFRE=degistirilecek-guclu-sifre
 JWT_SECRET=degistirilecek-uzun-rastgele-jwt-secret
+AUTH_COOKIE_SECURE=true
+AUTH_COOKIE_SAMESITE=lax
 ```
+
+Panel ve API farkli originlerde yayinlanacaksa `APP_ORIGIN` panel origin'ini icermeli ve cookie icin `AUTH_COOKIE_SAMESITE=none` kullanilmalidir. `SameSite=None` cookie'ler browser tarafinda HTTPS/`Secure` gerektirir.
 
 Dosya izinlerini sinirlayin:
 
@@ -65,7 +79,7 @@ sudo chmod 0640 /etc/panel/panel.env
 
 ```bash
 cd /opt/panel
-sudo -u panel npm ci --omit=dev
+sudo npm ci --omit=dev
 sudo -u panel bash -lc 'cd /opt/panel && set -a; source /etc/panel/panel.env; set +a; npm run check'
 sudo -u panel bash -lc 'cd /opt/panel && set -a; source /etc/panel/panel.env; set +a; npm run migrate'
 sudo -u panel bash -lc 'cd /opt/panel && set -a; source /etc/panel/panel.env; set +a; npm run seed'
@@ -89,14 +103,14 @@ User=panel
 Group=panel
 WorkingDirectory=/opt/panel
 EnvironmentFile=/etc/panel/panel.env
-ExecStartPre=/usr/bin/npm run migrate
 ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30
+UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=full
+ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/panel /var/backups/panel
 
@@ -117,17 +131,33 @@ journalctl -u panel -f
 
 ## Guncelleme akisi
 
+Asagidaki rsync komutunu yeni release kaynak dizininden calistirin; backup komutu mevcut
+`/opt/panel` surumundeki kodla calisir.
+
 ```bash
 sudo systemctl stop panel
-sudo rsync -a --delete --exclude node_modules --exclude .git --exclude .env ./ /opt/panel/
-sudo chown -R panel:panel /opt/panel
+sudo -u panel bash -lc 'cd /opt/panel && set -a; source /etc/panel/panel.env; set +a; npm run backup'
+sudo rsync -a --delete --chown=root:root \
+  --exclude 'node_modules' \
+  --exclude '.git' \
+  --exclude '.env' \
+  --exclude 'database/panel.db' \
+  --exclude 'database/panel.db-*' \
+  --exclude 'database/backups/' \
+  --exclude 'database/uploads/' \
+  --exclude 'public/uploads/' \
+  ./ /opt/panel/
 cd /opt/panel
-sudo -u panel npm ci --omit=dev
+sudo find /opt/panel -type d -exec chmod 0755 {} +
+sudo find /opt/panel -type f -exec chmod 0644 {} +
+sudo npm ci --omit=dev
 sudo -u panel bash -lc 'cd /opt/panel && set -a; source /etc/panel/panel.env; set +a; npm run check'
+sudo -u panel bash -lc 'cd /opt/panel && set -a; source /etc/panel/panel.env; set +a; npm run migrate'
 sudo systemctl start panel
 ```
 
-`panel.service` icindeki `ExecStartPre` her baslangicta `npm run migrate` calistirir.
+Guncelleme sirasinda sira bilincli olarak `backup -> migrate -> start` tutulur. Migration systemd
+`ExecStartPre` icinde calistirilmaz; her deployda backup alindiktan sonra manuel calistirilir.
 
 ## Manuel yedek
 
@@ -136,7 +166,13 @@ cd /opt/panel
 sudo -u panel bash -lc 'cd /opt/panel && set -a; source /etc/panel/panel.env; set +a; npm run backup'
 ```
 
-Yedek dosyalari `BACKUP_DIR` altinda `panel-<timestamp>.db` formatinda tutulur.
+Yedekler `BACKUP_DIR/panel-<timestamp>/` altinda tutulur. Artifact icinde:
+
+- `panel.db`: SQLite yedegi
+- `uploads.tar.gz`: `DATA_DIR/uploads` arsivi
+- `manifest.json`: kaynaklar, retention ve sha256 bilgileri
+
+`BACKUP_RETENTION_DAYS` varsayilan `14` gundur. `0` verilirse otomatik temizlik yapilmaz.
 
 ## Opsiyonel systemd backup timer
 
@@ -153,6 +189,12 @@ Group=panel
 WorkingDirectory=/opt/panel
 EnvironmentFile=/etc/panel/panel.env
 ExecStart=/usr/bin/npm run backup
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/panel /var/backups/panel
 ```
 
 `/etc/systemd/system/panel-backup.timer`:

@@ -264,12 +264,13 @@
                 try {
                     const cevap = await fetch('/api/auth/login', {
                         method: 'POST',
+                        credentials: 'include',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ kullanici_adi, sifre })
                     });
                     const veri = await yanitJsonOku(cevap);
-                    if (cevap.ok && veri.token && veri.kullanici) {
-                        localStorage.setItem('token', veri.token);
+                    if (cevap.ok && veri.kullanici) {
+                        localStorage.removeItem('token');
                         localStorage.setItem('kullanici', JSON.stringify(veri.kullanici));
                         window.location.href = '/panel.html';
                     } else {

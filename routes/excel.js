@@ -1,9 +1,52 @@
 const express = require('express');
+const crypto = require('node:crypto');
 const ExcelJS = require('exceljs');
 const db = require('../database/db');
 const { tokenDogrula } = require('../middleware/auth');
 const { kayitFormatla, kayitMaskele } = require('../middleware/format');
 const router = express.Router();
+
+const IMPORT_TTL_MS = 15 * 60 * 1000;
+const MAX_XLSX_DECODED_BYTES = 5 * 1024 * 1024;
+const MAX_EXCEL_ROWS = 2000;
+const MAX_EXCEL_COLUMNS = 12;
+const MAX_EXCEL_CELL_LENGTH = 300;
+const IMPORT_OTURUMLARI = new Map();
+
+const ALAN_UZUNLUK_LIMITLERI = {
+    plaka: 2,
+    il_adi: 80,
+    ilce_adi: 100,
+    baskan_ad_soyad: 120,
+    baskan_telefon: 20,
+    baskan_tc: 11,
+    instagram_url: 250,
+    twitter_url: 250,
+    facebook_url: 250,
+    tiktok_url: 250
+};
+
+const SOSYAL_PLATFORM_ALANLARI = {
+    instagram_url: 'instagram',
+    twitter_url: 'twitter',
+    facebook_url: 'facebook',
+    tiktok_url: 'tiktok'
+};
+
+const SOSYAL_HOST_ALLOWLIST = {
+    instagram: new Set(['instagram.com', 'www.instagram.com']),
+    twitter: new Set(['twitter.com', 'www.twitter.com', 'x.com', 'www.x.com']),
+    facebook: new Set(['facebook.com', 'www.facebook.com']),
+    tiktok: new Set(['tiktok.com', 'www.tiktok.com'])
+};
+
+class ExcelLimitError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'ExcelLimitError';
+        this.clientMessage = message;
+    }
+}
 
 const EXCEL_SABLONLARI = {
     il: {
@@ -95,6 +138,115 @@ function norm(s) {
         .trim();
 }
 
+function base64VerisiniCikar(dosya) {
+    if (typeof dosya !== 'string') throw new ExcelLimitError('Dosya verisi geçersiz.');
+
+    const raw = dosya.includes(',') ? dosya.split(',').pop() : dosya;
+    const temiz = String(raw || '').replace(/\s/g, '');
+    if (!temiz) throw new ExcelLimitError('Dosya verisi boş.');
+    if (!/^[A-Za-z0-9+/]*={0,2}$/.test(temiz) || temiz.length % 4 === 1) {
+        throw new ExcelLimitError('Dosya verisi base64 formatında değil.');
+    }
+
+    const padding = temiz.endsWith('==') ? 2 : temiz.endsWith('=') ? 1 : 0;
+    const tahminiByte = Math.floor((temiz.length * 3) / 4) - padding;
+    if (tahminiByte > MAX_XLSX_DECODED_BYTES) {
+        throw new ExcelLimitError(
+            `Excel dosyası en fazla ${Math.floor(MAX_XLSX_DECODED_BYTES / (1024 * 1024))} MB olabilir.`
+        );
+    }
+
+    const buf = Buffer.from(temiz, 'base64');
+    if (!buf.length) throw new ExcelLimitError('Dosya verisi boş.');
+    if (buf.length > MAX_XLSX_DECODED_BYTES) {
+        throw new ExcelLimitError(
+            `Excel dosyası en fazla ${Math.floor(MAX_XLSX_DECODED_BYTES / (1024 * 1024))} MB olabilir.`
+        );
+    }
+    return buf;
+}
+
+function suresiDolanImportlariTemizle(now = Date.now()) {
+    for (const [importId, oturum] of IMPORT_OTURUMLARI.entries()) {
+        if (!oturum || oturum.expiresAt <= now) IMPORT_OTURUMLARI.delete(importId);
+    }
+}
+
+function importOturumuKaydet({ kullaniciId, tip, satirlar, sorunlar, uygulanabilir }) {
+    suresiDolanImportlariTemizle();
+    const importId = crypto.randomUUID();
+    IMPORT_OTURUMLARI.set(importId, {
+        importId,
+        kullaniciId,
+        tip,
+        satirlar,
+        sorunlar,
+        uygulanabilir,
+        olusturuldu: Date.now(),
+        expiresAt: Date.now() + IMPORT_TTL_MS
+    });
+    return importId;
+}
+
+function importOturumuAl(importId) {
+    suresiDolanImportlariTemizle();
+    const oturum = IMPORT_OTURUMLARI.get(importId);
+    if (!oturum) return null;
+    if (oturum.expiresAt <= Date.now()) {
+        IMPORT_OTURUMLARI.delete(importId);
+        return null;
+    }
+    return oturum;
+}
+
+function izinliIlSeti(req) {
+    if (req.kullanici.rol !== 'kullanici') return null;
+    return new Set(
+        db
+            .prepare('SELECT il_id FROM kullanici_iller WHERE kullanici_id = ?')
+            .all(req.kullanici.id)
+            .map((r) => r.il_id)
+    );
+}
+
+function dogrulamaBaglamiOlustur(req) {
+    const tumIller = db.prepare('SELECT id, plaka, il_adi FROM iller').all();
+    const ilByPlaka = new Map();
+    const ilByNorm = new Map();
+    for (const il of tumIller) {
+        if (il.plaka !== null && il.plaka !== undefined) ilByPlaka.set(String(Number(il.plaka)), il);
+        ilByNorm.set(norm(il.il_adi), il);
+    }
+
+    const ilceCache = new Map();
+    function ilceEslestir(ilId, ilceAdi) {
+        if (!ilId || !ilceAdi) return null;
+        if (!ilceCache.has(ilId)) {
+            const ilceler = db.prepare('SELECT id, il_id, ilce_adi FROM ilceler WHERE il_id = ?').all(ilId);
+            const byExact = new Map();
+            const byNorm = new Map();
+            for (const ilce of ilceler) {
+                byExact.set(String(ilce.ilce_adi).toLocaleLowerCase('tr-TR'), ilce);
+                byNorm.set(norm(ilce.ilce_adi), ilce);
+            }
+            ilceCache.set(ilId, { byExact, byNorm });
+        }
+        const cache = ilceCache.get(ilId);
+        const aranan = String(ilceAdi).trim();
+        return cache.byExact.get(aranan.toLocaleLowerCase('tr-TR')) || cache.byNorm.get(norm(aranan)) || null;
+    }
+
+    return {
+        izinliIller: izinliIlSeti(req),
+        ilByPlaka,
+        ilByNorm,
+        ilEslestir(ad) {
+            return ilByNorm.get(norm(ad)) || null;
+        },
+        ilceEslestir
+    };
+}
+
 // Hucre degerini string'e cevir
 function hucreMetni(deger) {
     if (deger === null || deger === undefined) return '';
@@ -109,34 +261,58 @@ function hucreMetni(deger) {
 }
 
 async function dosyaOku(base64) {
-    const veri = base64.includes(',') ? base64.split(',')[1] : base64;
-    const buf = Buffer.from(veri, 'base64');
+    const buf = base64VerisiniCikar(base64);
     const wb = new ExcelJS.Workbook();
     // @ts-expect-error ExcelJS v4 types expect a pre-generic Node Buffer.
     await wb.xlsx.load(buf);
     const ws = wb.worksheets[0];
     if (!ws) return [];
+    const rowCount = ws.rowCount || ws.actualRowCount || 0;
+    const columnCount = ws.columnCount || ws.actualColumnCount || 0;
+    if (rowCount > MAX_EXCEL_ROWS) {
+        throw new ExcelLimitError(`Excel dosyası en fazla ${MAX_EXCEL_ROWS} satır içerebilir.`);
+    }
+    if (columnCount > MAX_EXCEL_COLUMNS) {
+        throw new ExcelLimitError(`Excel dosyası en fazla ${MAX_EXCEL_COLUMNS} sütun içerebilir.`);
+    }
+
     const satirlar = [];
-    ws.eachRow({ includeEmpty: true }, (row) => {
+    for (let r = 1; r <= rowCount; r++) {
+        const row = ws.getRow(r);
+        const maxCol = Math.max(ws.actualColumnCount || 0, row.cellCount || 0, row.actualCellCount || 0);
+        if (maxCol > MAX_EXCEL_COLUMNS) {
+            throw new ExcelLimitError(`Excel dosyası en fazla ${MAX_EXCEL_COLUMNS} sütun içerebilir.`);
+        }
         const arr = [];
-        const maxCol = ws.actualColumnCount || row.cellCount || 0;
-        for (let c = 1; c <= Math.max(maxCol, row.cellCount); c++) {
-            arr.push(hucreMetni(row.getCell(c).value));
+        for (let c = 1; c <= maxCol; c++) {
+            const metin = hucreMetni(row.getCell(c).value);
+            if (metin.length > MAX_EXCEL_CELL_LENGTH) {
+                throw new ExcelLimitError(
+                    `Excel hücreleri en fazla ${MAX_EXCEL_CELL_LENGTH} karakter içerebilir. Satır ${r}, sütun ${c}.`
+                );
+            }
+            arr.push(metin);
         }
         satirlar.push(arr);
-    });
+    }
     return satirlar;
 }
 
 function eksikAlanlarBul(tip, kayit) {
     const eksik = [];
+    if (tip === 'il' && !kayit.plaka) eksik.push('plaka');
     if (!kayit.il_adi) eksik.push('il_adi');
     if (tip === 'ilce' && !kayit.ilce_adi) eksik.push('ilce_adi');
     return eksik;
 }
 
 function sorunMesaji(tip, eksikAlanlar) {
-    if (tip === 'il') return 'İl adı boş veya algılanamadı';
+    if (tip === 'il') {
+        if (eksikAlanlar.includes('plaka') && eksikAlanlar.includes('il_adi'))
+            return 'Plaka ve il adı boş veya algılanamadı';
+        if (eksikAlanlar.includes('plaka')) return 'Plaka boş veya algılanamadı';
+        return 'İl adı boş veya algılanamadı';
+    }
     if (eksikAlanlar.includes('il_adi') && eksikAlanlar.includes('ilce_adi'))
         return 'İl ve ilçe adı boş veya algılanamadı';
     if (eksikAlanlar.includes('il_adi')) return 'İl adı boş veya algılanamadı';
@@ -147,11 +323,6 @@ function algilananAlanlar(kayit) {
     return Object.keys(kayit).filter(
         (k) => k && !k.startsWith('_') && kayit[k] !== null && kayit[k] !== undefined && kayit[k] !== ''
     );
-}
-
-function aiSatirNo(ham, index) {
-    const n = parseInt(ham?._satir || ham?.satir || '', 10);
-    return Number.isFinite(n) && n > 0 ? n : index + 1;
 }
 
 function sablonBasliklariniDogrula(tip, baslikSatiri) {
@@ -184,6 +355,164 @@ function satirdanKayitOlustur(tip, satir) {
     return kayit;
 }
 
+function kritikSorunEkle(sorunlar, satir, sorun, detay = {}) {
+    sorunlar.push({ satir, sorun, kritik: true, ...detay });
+}
+
+function tcKimlikNoGecerliMi(deger) {
+    const rakam = String(deger || '').replace(/\D/g, '');
+    if (!/^[1-9][0-9]{10}$/.test(rakam)) return false;
+    const haneler = rakam.split('').map((n) => Number(n));
+    const tekler = haneler[0] + haneler[2] + haneler[4] + haneler[6] + haneler[8];
+    const ciftler = haneler[1] + haneler[3] + haneler[5] + haneler[7];
+    const onuncu = (((tekler * 7 - ciftler) % 10) + 10) % 10;
+    const onBirinci = haneler.slice(0, 10).reduce((toplam, n) => toplam + n, 0) % 10;
+    return haneler[9] === onuncu && haneler[10] === onBirinci;
+}
+
+function telefonRakamlariniNormalizeEt(deger) {
+    let rakam = String(deger || '').replace(/\D/g, '');
+    if (rakam.startsWith('90') && rakam.length === 12) rakam = rakam.slice(2);
+    if (rakam.startsWith('0') && rakam.length === 11) rakam = rakam.slice(1);
+    return rakam;
+}
+
+function telefonGecerliMi(deger) {
+    const rakam = telefonRakamlariniNormalizeEt(deger);
+    return /^5[0-9]{9}$/.test(rakam);
+}
+
+function sosyalUrlGecerliMi(deger, platform) {
+    const metin = String(deger || '').trim();
+    if (!metin || /\s/.test(metin)) return false;
+    try {
+        const url = new URL(metin);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+        if (url.username || url.password) return false;
+        const host = url.hostname.toLowerCase().replace(/\.$/, '');
+        return SOSYAL_HOST_ALLOWLIST[platform]?.has(host) || false;
+    } catch (_e) {
+        return false;
+    }
+}
+
+function alanUzunluklariniDogrula(kayit, sorunlar, satirNo) {
+    for (const [alan, limit] of Object.entries(ALAN_UZUNLUK_LIMITLERI)) {
+        if (kayit[alan] === undefined || kayit[alan] === null || kayit[alan] === '') continue;
+        if (String(kayit[alan]).length > limit) {
+            kritikSorunEkle(sorunlar, satirNo, `${alan} alanı en fazla ${limit} karakter olabilir`, { alan });
+        }
+    }
+}
+
+function hassasVeSosyalAlanlariDogrula(kayit, sorunlar, satirNo) {
+    if (kayit.baskan_tc && !tcKimlikNoGecerliMi(kayit.baskan_tc)) {
+        kritikSorunEkle(sorunlar, satirNo, 'TC Kimlik No geçersiz', { alan: 'baskan_tc' });
+    }
+    if (kayit.baskan_telefon && !telefonGecerliMi(kayit.baskan_telefon)) {
+        kritikSorunEkle(sorunlar, satirNo, 'Telefon numarası geçersiz', { alan: 'baskan_telefon' });
+    }
+    for (const [alan, platform] of Object.entries(SOSYAL_PLATFORM_ALANLARI)) {
+        if (!kayit[alan]) continue;
+        if (!sosyalUrlGecerliMi(kayit[alan], platform)) {
+            kritikSorunEkle(sorunlar, satirNo, `${platform} bağlantısı izin verilen alan adında değil`, { alan });
+        }
+    }
+}
+
+function ilSatiriniDogrula(kayit, sorunlar, satirNo, baglam) {
+    const plakaMetni = String(kayit.plaka || '').trim();
+    if (!/^[0-9]{1,2}$/.test(plakaMetni)) {
+        kritikSorunEkle(sorunlar, satirNo, 'Plaka 1-81 arasında sayısal olmalıdır', { alan: 'plaka' });
+        return null;
+    }
+
+    const plaka = Number(plakaMetni);
+    if (!Number.isInteger(plaka) || plaka < 1 || plaka > 81) {
+        kritikSorunEkle(sorunlar, satirNo, 'Plaka 1-81 arasında olmalıdır', { alan: 'plaka' });
+        return null;
+    }
+
+    const il = baglam.ilByPlaka.get(String(plaka));
+    if (!il) {
+        kritikSorunEkle(sorunlar, satirNo, 'Plaka mevcut bir il ile eşleşmedi', { plaka });
+        return null;
+    }
+
+    if (norm(il.il_adi) !== norm(kayit.il_adi)) {
+        kritikSorunEkle(sorunlar, satirNo, 'Plaka ile il adı eşleşmiyor', {
+            plaka,
+            il_adi: kayit.il_adi || '',
+            beklenenIlAdi: il.il_adi
+        });
+        return null;
+    }
+
+    if (baglam.izinliIller && !baglam.izinliIller.has(il.id)) {
+        kritikSorunEkle(sorunlar, satirNo, 'Bu il için yetki yok', { il_adi: il.il_adi });
+        return null;
+    }
+
+    return { ilId: il.id };
+}
+
+function ilceSatiriniDogrula(kayit, sorunlar, satirNo, baglam) {
+    const il = baglam.ilEslestir(kayit.il_adi);
+    if (!il) {
+        kritikSorunEkle(sorunlar, satirNo, 'İl eşleşmedi', { il_adi: kayit.il_adi || '' });
+        return null;
+    }
+
+    if (baglam.izinliIller && !baglam.izinliIller.has(il.id)) {
+        kritikSorunEkle(sorunlar, satirNo, 'Bu il için yetki yok', { il_adi: il.il_adi });
+        return null;
+    }
+
+    const ilce = baglam.ilceEslestir(il.id, kayit.ilce_adi);
+    if (!ilce) {
+        kritikSorunEkle(sorunlar, satirNo, 'İlçe eşleşmedi', {
+            il_adi: kayit.il_adi || '',
+            ilce_adi: kayit.ilce_adi || ''
+        });
+        return null;
+    }
+
+    return { ilId: il.id, ilceId: ilce.id };
+}
+
+function satiriDogrula(tip, hamKayit, satirNo, satir, baglam) {
+    const sorunlar = [];
+    const eksikAlanlar = eksikAlanlarBul(tip, hamKayit);
+    if (eksikAlanlar.length) {
+        kritikSorunEkle(sorunlar, satirNo, sorunMesaji(tip, eksikAlanlar), {
+            eksikAlanlar,
+            algilananAlanlar: algilananAlanlar(hamKayit),
+            doluHucreSayisi: satir.filter((h) => String(h).trim() !== '').length
+        });
+    }
+
+    const kayit = kayitFormatla(hamKayit);
+    alanUzunluklariniDogrula(kayit, sorunlar, satirNo);
+    hassasVeSosyalAlanlariDogrula(kayit, sorunlar, satirNo);
+
+    let hedef = null;
+    if (!eksikAlanlar.length) {
+        hedef =
+            tip === 'il'
+                ? ilSatiriniDogrula(kayit, sorunlar, satirNo, baglam)
+                : ilceSatiriniDogrula(kayit, sorunlar, satirNo, baglam);
+    }
+
+    if (sorunlar.length) return { kayit: null, sorunlar };
+    return { kayit: { ...kayit, _satir: satirNo, _hedef: hedef }, sorunlar };
+}
+
+function importKaydiniYanitaHazirla(kayit) {
+    const disKayit = { ...kayit };
+    delete disKayit._hedef;
+    return disKayit;
+}
+
 // POST /api/excel/onizle - sablon bazli onizleme
 router.post('/onizle', tokenDogrula, async (req, res) => {
     const { dosya } = req.body;
@@ -192,8 +521,13 @@ router.post('/onizle', tokenDogrula, async (req, res) => {
     let satirlar;
     try {
         satirlar = await dosyaOku(dosya);
-    } catch (_e) {
-        return res.status(400).json({ hata: 'Excel dosyası okunamadı. Lütfen indirilen .xlsx şablonunu yükleyin.' });
+    } catch (err) {
+        return res.status(400).json({
+            hata:
+                err instanceof ExcelLimitError
+                    ? err.clientMessage
+                    : 'Excel dosyası okunamadı. Lütfen indirilen .xlsx şablonunu yükleyin.'
+        });
     }
     if (!satirlar.length) return res.status(400).json({ hata: 'Dosya boş.' });
 
@@ -204,153 +538,133 @@ router.post('/onizle', tokenDogrula, async (req, res) => {
 
     const sonuclar = [];
     const sorunlar = [];
+    const baglam = dogrulamaBaglamiOlustur(req);
     for (let r = 1; r < satirlar.length; r++) {
         const satir = satirlar[r];
         if (satir.every((h) => String(h).trim() === '')) continue;
         const kayit = satirdanKayitOlustur(tip, satir);
-        const eksikAlanlar = eksikAlanlarBul(tip, kayit);
-        if (eksikAlanlar.length) {
-            sorunlar.push({
-                satir: r + 1,
-                sorun: sorunMesaji(tip, eksikAlanlar),
-                eksikAlanlar,
-                algilananAlanlar: algilananAlanlar(kayit),
-                doluHucreSayisi: satir.filter((h) => String(h).trim() !== '').length
-            });
-            continue;
-        }
-        kayit._satir = r + 1;
-        sonuclar.push(kayitFormatla(kayit));
+        const dogrulama = satiriDogrula(tip, kayit, r + 1, satir, baglam);
+        sorunlar.push(...dogrulama.sorunlar);
+        if (dogrulama.kayit) sonuclar.push(dogrulama.kayit);
     }
-    res.json({ toplam: sonuclar.length, sonuclar, sorunlar, sablon: tip });
+
+    if (!sonuclar.length && !sorunlar.length) {
+        kritikSorunEkle(sorunlar, 0, 'Aktarılacak kayıt bulunamadı');
+    }
+
+    const uygulanabilir = sonuclar.length > 0 && !sorunlar.some((s) => s.kritik);
+    const importId = importOturumuKaydet({
+        kullaniciId: req.kullanici.id,
+        tip,
+        satirlar: sonuclar,
+        sorunlar,
+        uygulanabilir
+    });
+
+    res.json({
+        importId,
+        tip,
+        toplam: sonuclar.length,
+        sonuclar: sonuclar.map(importKaydiniYanitaHazirla),
+        sorunlar,
+        sablon: tip,
+        uygulanabilir,
+        ttlSaniye: Math.floor(IMPORT_TTL_MS / 1000)
+    });
 });
 
 // POST /api/excel/uygula
 router.post('/uygula', tokenDogrula, (req, res) => {
-    const { sonuclar } = req.body;
-    if (!Array.isArray(sonuclar)) return res.status(400).json({ hata: 'Geçersiz veri.' });
+    const importId = typeof req.body.importId === 'string' ? req.body.importId.trim() : '';
+    const tip = req.body.tip === 'il' || req.body.tip === 'ilce' ? req.body.tip : null;
+    if (!importId || !tip) return res.status(400).json({ hata: 'importId ve tip gereklidir.' });
 
-    let izinliIller = null;
-    if (req.kullanici.rol === 'kullanici') {
-        izinliIller = new Set(
-            db
-                .prepare('SELECT il_id FROM kullanici_iller WHERE kullanici_id = ?')
-                .all(req.kullanici.id)
-                .map((r) => r.il_id)
-        );
+    const oturum = importOturumuAl(importId);
+    if (!oturum) return res.status(410).json({ hata: 'Import oturumu bulunamadı veya süresi doldu.' });
+    if (oturum.kullaniciId !== req.kullanici.id) {
+        return res.status(403).json({ hata: 'Import oturumu bu kullanıcıya ait değil.' });
+    }
+    if (oturum.tip !== tip) return res.status(403).json({ hata: 'Import tipi eşleşmiyor.' });
+    if (!oturum.uygulanabilir) {
+        return res.status(409).json({
+            hata: 'Önizlemede kritik sorunlar var; hiçbir kayıt uygulanmadı.',
+            sorunlar: oturum.sorunlar
+        });
     }
 
-    let basarili = 0,
-        ilceBasarili = 0,
-        atlanan = 0;
-    const sorunlar = [];
-    const ilBul = db.prepare('SELECT id FROM iller WHERE il_adi = ? COLLATE NOCASE');
-    const tumIller = db.prepare('SELECT id, il_adi FROM iller').all();
-    function ilEslestir(ad) {
-        const tam = ilBul.get(ad);
-        if (tam) return tam.id;
-        const na = norm(ad);
-        const bul = tumIller.find((i) => norm(i.il_adi) === na);
-        return bul ? bul.id : null;
-    }
-    // Mevcut ilceyi bul (yeni ekleme yapma)
-    function ilceEslestir(ilId, ilceAdi) {
-        if (!ilId || !ilceAdi) return null;
-        const tam = db
-            .prepare('SELECT id FROM ilceler WHERE il_id=? AND ilce_adi=? COLLATE NOCASE')
-            .get(ilId, String(ilceAdi).trim());
-        if (tam) return tam.id;
-        const na = norm(ilceAdi);
-        const tumIlceler = db.prepare('SELECT id, ilce_adi FROM ilceler WHERE il_id=?').all(ilId);
-        const bul = tumIlceler.find((i) => norm(i.ilce_adi) === na);
-        return bul ? bul.id : null;
+    const izinliIller = izinliIlSeti(req);
+    const ilVarMiSorgu = db.prepare('SELECT 1 FROM iller WHERE id = ?');
+    const ilceVarMiSorgu = db.prepare('SELECT 1 FROM ilceler WHERE id = ? AND il_id = ?');
+    for (const kayit of oturum.satirlar) {
+        const hedef = kayit._hedef || {};
+        if (izinliIller && !izinliIller.has(hedef.ilId)) {
+            return res.status(403).json({ hata: 'Bu il için yetki yok; hiçbir kayıt uygulanmadı.' });
+        }
+        const hedefVarMi = tip === 'il' ? ilVarMiSorgu.get(hedef.ilId) : ilceVarMiSorgu.get(hedef.ilceId, hedef.ilId);
+        if (!hedefVarMi) {
+            return res.status(409).json({ hata: 'Hedef kayıtlar değişmiş; lütfen dosyayı yeniden önizleyin.' });
+        }
     }
 
-    db.withTransaction(() => {
-        sonuclar.forEach((ham, index) => {
-            const satirNo = aiSatirNo(ham, index);
-            const k = kayitFormatla(ham && typeof ham === 'object' ? ham : {});
-            try {
-                const ilId = ilEslestir(k.il_adi);
-                if (!ilId) {
-                    atlanan++;
-                    sorunlar.push({ satir: satirNo, sorun: 'İl eşleşmedi', il_adi: k.il_adi || '' });
-                    return;
-                }
-                if (izinliIller && !izinliIller.has(ilId)) {
-                    atlanan++;
-                    sorunlar.push({ satir: satirNo, sorun: 'Bu il için yetki yok', il_adi: k.il_adi || '' });
-                    return;
-                }
+    const ilGuncelle = db.prepare(
+        `UPDATE iller SET
+        baskan_ad_soyad=COALESCE(?,baskan_ad_soyad), baskan_telefon=COALESCE(?,baskan_telefon),
+        baskan_tc=COALESCE(?,baskan_tc), instagram_url=COALESCE(?,instagram_url),
+        twitter_url=COALESCE(?,twitter_url), facebook_url=COALESCE(?,facebook_url), tiktok_url=COALESCE(?,tiktok_url)
+        WHERE id=?`
+    );
+    const ilceGuncelle = db.prepare(
+        `UPDATE ilceler SET
+        baskan_ad_soyad=COALESCE(?,baskan_ad_soyad), baskan_telefon=COALESCE(?,baskan_telefon),
+        baskan_tc=COALESCE(?,baskan_tc), instagram_url=COALESCE(?,instagram_url),
+        twitter_url=COALESCE(?,twitter_url), facebook_url=COALESCE(?,facebook_url), tiktok_url=COALESCE(?,tiktok_url)
+        WHERE id=? AND il_id=?`
+    );
 
-                // Kayitta ilce_adi varsa: ILCEYI guncelle (il'e dokunma)
-                if (k.ilce_adi && String(k.ilce_adi).trim()) {
-                    const ilceId = ilceEslestir(ilId, k.ilce_adi);
-                    if (ilceId) {
-                        db.prepare(
-                            `UPDATE ilceler SET
-                            baskan_ad_soyad=COALESCE(?,baskan_ad_soyad), baskan_telefon=COALESCE(?,baskan_telefon),
-                            baskan_tc=COALESCE(?,baskan_tc), instagram_url=COALESCE(?,instagram_url),
-                            twitter_url=COALESCE(?,twitter_url), facebook_url=COALESCE(?,facebook_url), tiktok_url=COALESCE(?,tiktok_url)
-                            WHERE id=?`
-                        ).run(
-                            k.baskan_ad_soyad || null,
-                            k.baskan_telefon || null,
-                            k.baskan_tc || null,
-                            k.instagram_url || null,
-                            k.twitter_url || null,
-                            k.facebook_url || null,
-                            k.tiktok_url || null,
-                            ilceId
-                        );
-                        ilceBasarili++;
-                    } else {
-                        // Mevcut ilce bulunamadi - YENI EKLEMIYORUZ, sadece atla
-                        atlanan++;
-                        sorunlar.push({
-                            satir: satirNo,
-                            sorun: 'İlçe eşleşmedi',
-                            il_adi: k.il_adi || '',
-                            ilce_adi: k.ilce_adi || ''
-                        });
-                    }
-                } else {
-                    // Sadece il bilgisi - il'i guncelle
-                    db.prepare(
-                        `UPDATE iller SET
-                        baskan_ad_soyad=COALESCE(?,baskan_ad_soyad), baskan_telefon=COALESCE(?,baskan_telefon),
-                        baskan_tc=COALESCE(?,baskan_tc), instagram_url=COALESCE(?,instagram_url),
-                        twitter_url=COALESCE(?,twitter_url), facebook_url=COALESCE(?,facebook_url), tiktok_url=COALESCE(?,tiktok_url)
-                        WHERE id=?`
-                    ).run(
-                        k.baskan_ad_soyad || null,
-                        k.baskan_telefon || null,
-                        k.baskan_tc || null,
-                        k.instagram_url || null,
-                        k.twitter_url || null,
-                        k.facebook_url || null,
-                        k.tiktok_url || null,
-                        ilId
-                    );
-                    basarili++;
-                }
-            } catch (_e) {
-                atlanan++;
-                sorunlar.push({
-                    satir: satirNo,
-                    sorun: 'Kayıt uygulanamadı',
-                    il_adi: k.il_adi || '',
-                    ilce_adi: k.ilce_adi || ''
-                });
+    let basarili = 0;
+    let ilceBasarili = 0;
+    try {
+        db.withTransaction(() => {
+            for (const k of oturum.satirlar) {
+                const hedef = k._hedef || {};
+                const sonuc =
+                    tip === 'il'
+                        ? ilGuncelle.run(
+                              k.baskan_ad_soyad || null,
+                              k.baskan_telefon || null,
+                              k.baskan_tc || null,
+                              k.instagram_url || null,
+                              k.twitter_url || null,
+                              k.facebook_url || null,
+                              k.tiktok_url || null,
+                              hedef.ilId
+                          )
+                        : ilceGuncelle.run(
+                              k.baskan_ad_soyad || null,
+                              k.baskan_telefon || null,
+                              k.baskan_tc || null,
+                              k.instagram_url || null,
+                              k.twitter_url || null,
+                              k.facebook_url || null,
+                              k.tiktok_url || null,
+                              hedef.ilceId,
+                              hedef.ilId
+                          );
+                if (sonuc.changes === 0) throw new Error('Hedef kayıt bulunamadı');
+                if (tip === 'il') basarili++;
+                else ilceBasarili++;
             }
         });
-    });
+    } catch (_e) {
+        return res.status(409).json({ hata: 'Kayıtlar uygulanamadı; hiçbir kayıt güncellenmedi.' });
+    }
+
+    IMPORT_OTURUMLARI.delete(importId);
     const parcalar = [];
     if (basarili > 0) parcalar.push(basarili + ' il güncellendi');
     if (ilceBasarili > 0) parcalar.push(ilceBasarili + ' ilçe güncellendi');
-    if (atlanan > 0) parcalar.push(atlanan + ' kayıt atlandı (eşleşmeyen il/ilçe)');
     const mesaj = parcalar.length ? parcalar.join(', ') + '.' : 'Hiç kayıt güncellenmedi.';
-    res.json({ mesaj, basarili: basarili + ilceBasarili, ilceBasarili, atlanan, sorunlar });
+    res.json({ mesaj, basarili: basarili + ilceBasarili, ilceBasarili, atlanan: 0, sorunlar: [] });
 });
 
 async function excelGonder(res, satirlar, ad) {
