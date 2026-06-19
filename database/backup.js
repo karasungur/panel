@@ -32,10 +32,12 @@ async function main() {
 }
 
 main()
-    .catch(err => {
+    .catch((err) => {
         console.error('Yedek olusturulamadi:', err.message);
         process.exitCode = 1;
     })
     .finally(() => {
-        try { db.close(); } catch (_) {}
+        try {
+            db.close();
+        } catch (_) {}
     });

@@ -7,7 +7,7 @@ const path = require('node:path');
 let sqlite;
 try {
     sqlite = require('node:sqlite');
-} catch (err) {
+} catch (_err) {
     console.error('node:sqlite bulunamadi. Node.js >=22.13.0 ile calistirin.');
     process.exit(1);
 }
@@ -24,13 +24,9 @@ function sqlString(value) {
 
 async function main() {
     const rootDir = path.resolve(__dirname, '..');
-    const dataDir = process.env.DATA_DIR
-        ? path.resolve(process.env.DATA_DIR)
-        : path.join(rootDir, 'database');
+    const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(rootDir, 'database');
     const dbPath = path.join(dataDir, 'panel.db');
-    const backupDir = process.env.BACKUP_DIR
-        ? path.resolve(process.env.BACKUP_DIR)
-        : path.join(dataDir, 'backups');
+    const backupDir = process.env.BACKUP_DIR ? path.resolve(process.env.BACKUP_DIR) : path.join(dataDir, 'backups');
 
     if (!fs.existsSync(dbPath)) {
         throw new Error(`Veritabani bulunamadi: ${dbPath}. Once npm run migrate veya npm run seed calistirin.`);
@@ -59,7 +55,7 @@ async function main() {
     console.log(`Yontem: ${method}`);
 }
 
-main().catch(err => {
+main().catch((err) => {
     console.error('Yedekleme basarisiz oldu.');
     console.error(err && err.stack ? err.stack : err);
     process.exit(1);

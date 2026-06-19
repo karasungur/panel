@@ -31,7 +31,7 @@ function rebuildKullanicilar(db, helpers) {
                 'token_version',
                 'olusturulma_tarihi'
             ];
-            const ortakKolonlar = yeniKolonlar.filter(kolon => eskiKolonlar.includes(kolon));
+            const ortakKolonlar = yeniKolonlar.filter((kolon) => eskiKolonlar.includes(kolon));
             const kolonListesi = ortakKolonlar.map(helpers.quoteIdentifier).join(', ');
 
             db.exec(`
@@ -61,14 +61,18 @@ module.exports = {
                 db.exec('ALTER TABLE kullanicilar ADD COLUMN son_giris DATETIME');
             }
             if (!kullaniciKolonlari.includes('token_version')) {
-                db.exec('ALTER TABLE kullanicilar ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0 CHECK(token_version >= 0)');
+                db.exec(
+                    'ALTER TABLE kullanicilar ADD COLUMN token_version INTEGER NOT NULL DEFAULT 0 CHECK(token_version >= 0)'
+                );
             }
         }
 
         if (helpers.tableExists(db, 'gorevler')) {
             const gorevKolonlari = helpers.columns(db, 'gorevler');
             if (!gorevKolonlari.includes('oncelik')) {
-                db.exec("ALTER TABLE gorevler ADD COLUMN oncelik TEXT NOT NULL DEFAULT 'normal' CHECK(oncelik IN ('dusuk','normal','acil'))");
+                db.exec(
+                    "ALTER TABLE gorevler ADD COLUMN oncelik TEXT NOT NULL DEFAULT 'normal' CHECK(oncelik IN ('dusuk','normal','acil'))"
+                );
             }
             if (!gorevKolonlari.includes('kategori')) {
                 db.exec("ALTER TABLE gorevler ADD COLUMN kategori TEXT DEFAULT 'diger'");
@@ -77,7 +81,9 @@ module.exports = {
                 db.exec('ALTER TABLE gorevler ADD COLUMN son_tarih DATETIME');
             }
             if (!gorevKolonlari.includes('tekrar')) {
-                db.exec("ALTER TABLE gorevler ADD COLUMN tekrar TEXT DEFAULT 'tek' CHECK(tekrar IN ('tek','haftalik','aylik'))");
+                db.exec(
+                    "ALTER TABLE gorevler ADD COLUMN tekrar TEXT DEFAULT 'tek' CHECK(tekrar IN ('tek','haftalik','aylik'))"
+                );
             }
             if (!gorevKolonlari.includes('olusturan_id')) {
                 db.exec('ALTER TABLE gorevler ADD COLUMN olusturan_id INTEGER');

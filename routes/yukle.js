@@ -6,9 +6,7 @@ const { tokenDogrula } = require('../middleware/auth');
 const router = express.Router();
 const fsp = fs.promises;
 
-const dataDir = process.env.DATA_DIR
-    ? path.resolve(process.env.DATA_DIR)
-    : path.join(__dirname, '..', 'database');
+const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(__dirname, '..', 'database');
 const uploadDir = path.join(dataDir, 'uploads');
 const legacyUploadDir = path.join(__dirname, '..', 'public', 'uploads');
 

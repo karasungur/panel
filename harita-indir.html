@@ -1,72 +1,127 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
-<head>
-<meta charset="UTF-8">
-<title>Türkiye Haritası İndir</title>
-<style>
-  body { font-family: 'Segoe UI', Arial, sans-serif; background:#0f1729; color:#e8edf5; display:flex; justify-content:center; align-items:center; min-height:100vh; margin:0; }
-  .kutu { background:#16213e; padding:40px; border-radius:14px; max-width:520px; text-align:center; border:1px solid #233156; }
-  h1 { color:#e94560; font-size:20px; margin-top:0; }
-  p { color:#aab4c8; line-height:1.6; font-size:14px; }
-  button { background:#e94560; color:#fff; border:none; padding:14px 26px; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; margin-top:14px; }
-  button:hover { background:#c73652; }
-  button:disabled { background:#555; cursor:wait; }
-  .durum { margin-top:18px; font-size:13px; min-height:20px; }
-  .ok { color:#4ade80; }
-  .hata { color:#e94560; }
-  code { background:#0f3460; padding:2px 7px; border-radius:5px; color:#6db3f2; }
-</style>
-</head>
-<body>
-<div class="kutu">
-  <h1>Türkiye Haritası İndir</h1>
-  <p>
-    Aşağıdaki butona basın. <code>turkiye.svg</code> dosyası inecek.<br>
-    İnen dosyayı <code>panel/public</code> klasörünün içine kopyalayın.
-  </p>
-  <button id="btn" onclick="indir()">Haritayı İndir</button>
-  <div class="durum" id="durum"></div>
-</div>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Türkiye Haritası İndir</title>
+        <style>
+            body {
+                font-family: 'Segoe UI', Arial, sans-serif;
+                background: #0f1729;
+                color: #e8edf5;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+            }
+            .kutu {
+                background: #16213e;
+                padding: 40px;
+                border-radius: 14px;
+                max-width: 520px;
+                text-align: center;
+                border: 1px solid #233156;
+            }
+            h1 {
+                color: #e94560;
+                font-size: 20px;
+                margin-top: 0;
+            }
+            p {
+                color: #aab4c8;
+                line-height: 1.6;
+                font-size: 14px;
+            }
+            button {
+                background: #e94560;
+                color: #fff;
+                border: none;
+                padding: 14px 26px;
+                border-radius: 8px;
+                font-size: 15px;
+                font-weight: 600;
+                cursor: pointer;
+                margin-top: 14px;
+            }
+            button:hover {
+                background: #c73652;
+            }
+            button:disabled {
+                background: #555;
+                cursor: wait;
+            }
+            .durum {
+                margin-top: 18px;
+                font-size: 13px;
+                min-height: 20px;
+            }
+            .ok {
+                color: #4ade80;
+            }
+            .hata {
+                color: #e94560;
+            }
+            code {
+                background: #0f3460;
+                padding: 2px 7px;
+                border-radius: 5px;
+                color: #6db3f2;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="kutu">
+            <h1>Türkiye Haritası İndir</h1>
+            <p>
+                Aşağıdaki butona basın. <code>turkiye.svg</code> dosyası inecek.<br />
+                İnen dosyayı <code>panel/public</code> klasörünün içine kopyalayın.
+            </p>
+            <button id="btn" onclick="indir()">Haritayı İndir</button>
+            <div class="durum" id="durum"></div>
+        </div>
 
-<script>
-const HARITA_URL = 'https://cdn.jsdelivr.net/gh/dnomak/svg-turkiye-haritasi@master/index.html';
+        <script>
+            const HARITA_URL = 'https://cdn.jsdelivr.net/gh/dnomak/svg-turkiye-haritasi@master/index.html';
 
-async function indir() {
-  const btn = document.getElementById('btn');
-  const durum = document.getElementById('durum');
-  btn.disabled = true;
-  durum.textContent = 'İndiriliyor...';
-  durum.className = 'durum';
+            async function indir() {
+                const btn = document.getElementById('btn');
+                const durum = document.getElementById('durum');
+                btn.disabled = true;
+                durum.textContent = 'İndiriliyor...';
+                durum.className = 'durum';
 
-  try {
-    const cevap = await fetch(HARITA_URL);
-    if (!cevap.ok) throw new Error('İndirilemedi');
-    const html = await cevap.text();
+                try {
+                    const cevap = await fetch(HARITA_URL);
+                    if (!cevap.ok) throw new Error('İndirilemedi');
+                    const html = await cevap.text();
 
-    // index.html icindeki <svg ...>...</svg> kismini cikar
-    const baslangic = html.indexOf('<svg');
-    const bitis = html.indexOf('</svg>') + 6;
-    if (baslangic === -1 || bitis === -1) throw new Error('SVG bulunamadı');
-    const svg = html.substring(baslangic, bitis);
+                    // index.html icindeki <svg ...>...</svg> kismini cikar
+                    const baslangic = html.indexOf('<svg');
+                    const bitis = html.indexOf('</svg>') + 6;
+                    if (baslangic === -1 || bitis === -1) throw new Error('SVG bulunamadı');
+                    const svg = html.substring(baslangic, bitis);
 
-    const blob = new Blob([svg], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'turkiye.svg';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+                    const blob = new Blob([svg], { type: 'image/svg+xml' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'turkiye.svg';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
 
-    durum.textContent = '✓ İndirildi! Şimdi turkiye.svg dosyasını panel/public klasörüne kopyalayın.';
-    durum.className = 'durum ok';
-  } catch (e) {
-    durum.innerHTML = '✗ İndirilemedi. İnternet bağlantınızı kontrol edin veya elle indirin:<br><a href="' + HARITA_URL + '" target="_blank" style="color:#6db3f2">Harita kaynağı</a>';
-    durum.className = 'durum hata';
-  }
-  btn.disabled = false;
-}
-</script>
-</body>
+                    durum.textContent = '✓ İndirildi! Şimdi turkiye.svg dosyasını panel/public klasörüne kopyalayın.';
+                    durum.className = 'durum ok';
+                } catch (e) {
+                    durum.innerHTML =
+                        '✗ İndirilemedi. İnternet bağlantınızı kontrol edin veya elle indirin:<br><a href="' +
+                        HARITA_URL +
+                        '" target="_blank" style="color:#6db3f2">Harita kaynağı</a>';
+                    durum.className = 'durum hata';
+                }
+                btn.disabled = false;
+            }
+        </script>
+    </body>
 </html>

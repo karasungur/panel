@@ -38,14 +38,20 @@ function notTemizle(not) {
 
 // GET /api/notlar -> kendi notlarim (en yeni once)
 router.get('/', tokenDogrula, (req, res) => {
-    const notlar = db.prepare('SELECT id, baslik, icerik, olusturulma_tarihi, guncellenme_tarihi FROM notlar WHERE kullanici_id = ? ORDER BY guncellenme_tarihi DESC').all(req.kullanici.id);
+    const notlar = db
+        .prepare(
+            'SELECT id, baslik, icerik, olusturulma_tarihi, guncellenme_tarihi FROM notlar WHERE kullanici_id = ? ORDER BY guncellenme_tarihi DESC'
+        )
+        .all(req.kullanici.id);
     res.json(notlar.map(notTemizle));
 });
 
 // POST /api/notlar -> yeni not
 router.post('/', tokenDogrula, (req, res) => {
     const { baslik, icerik } = req.body;
-    const sonuc = db.prepare('INSERT INTO notlar (kullanici_id, baslik, icerik) VALUES (?, ?, ?)').run(req.kullanici.id, baslikTemizle(baslik), icerikTemizle(icerik));
+    const sonuc = db
+        .prepare('INSERT INTO notlar (kullanici_id, baslik, icerik) VALUES (?, ?, ?)')
+        .run(req.kullanici.id, baslikTemizle(baslik), icerikTemizle(icerik));
     const not = db.prepare('SELECT * FROM notlar WHERE id = ?').get(sonuc.lastInsertRowid);
     res.status(201).json(notTemizle(not));
 });
@@ -56,8 +62,13 @@ router.put('/:id', tokenDogrula, (req, res) => {
     if (!not) return res.status(404).json({ hata: 'Not bulunamadı.' });
     if (not.kullanici_id !== req.kullanici.id) return res.status(403).json({ hata: 'Bu not size ait değil.' });
     const { baslik, icerik } = req.body;
-    db.prepare("UPDATE notlar SET baslik = COALESCE(?, baslik), icerik = COALESCE(?, icerik), guncellenme_tarihi = CURRENT_TIMESTAMP WHERE id = ?")
-        .run(baslik === undefined ? null : baslikTemizle(baslik), icerik === undefined ? null : icerikTemizle(icerik), req.params.id);
+    db.prepare(
+        'UPDATE notlar SET baslik = COALESCE(?, baslik), icerik = COALESCE(?, icerik), guncellenme_tarihi = CURRENT_TIMESTAMP WHERE id = ?'
+    ).run(
+        baslik === undefined ? null : baslikTemizle(baslik),
+        icerik === undefined ? null : icerikTemizle(icerik),
+        req.params.id
+    );
     res.json({ mesaj: 'Not güncellendi.' });
 });
 

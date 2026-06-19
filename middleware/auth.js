@@ -9,12 +9,12 @@ function uretimOrtamiMi() {
 
 function jwtSecretAl() {
     const secret = (process.env.JWT_SECRET || '').trim();
-    const zayifSecret = !secret
-        || secret === VARSAYILAN_JWT_SECRET
-        || secret.length < MIN_JWT_SECRET_UZUNLUK;
+    const zayifSecret = !secret || secret === VARSAYILAN_JWT_SECRET || secret.length < MIN_JWT_SECRET_UZUNLUK;
 
     if (uretimOrtamiMi() && zayifSecret) {
-        throw new Error(`JWT_SECRET production ortaminda zorunlu ve en az ${MIN_JWT_SECRET_UZUNLUK} karakter olmalidir.`);
+        throw new Error(
+            `JWT_SECRET production ortaminda zorunlu ve en az ${MIN_JWT_SECRET_UZUNLUK} karakter olmalidir.`
+        );
     }
 
     if (!secret) {
@@ -23,7 +23,9 @@ function jwtSecretAl() {
     }
 
     if (secret === VARSAYILAN_JWT_SECRET || secret.length < MIN_JWT_SECRET_UZUNLUK) {
-        console.warn(`[auth] JWT_SECRET zayif gorunuyor; production ortaminda en az ${MIN_JWT_SECRET_UZUNLUK} karakter kullanin.`);
+        console.warn(
+            `[auth] JWT_SECRET zayif gorunuyor; production ortaminda en az ${MIN_JWT_SECRET_UZUNLUK} karakter kullanin.`
+        );
     }
 
     return secret;
@@ -56,11 +58,15 @@ function tokenDogrula(req, res, next) {
     let cozulmus;
     try {
         cozulmus = jwt.verify(token, JWT_SECRET);
-    } catch (err) {
+    } catch (_err) {
         return res.status(401).json({ hata: 'Gecersiz veya suresi dolmus oturum.' });
     }
 
     try {
+        if (!cozulmus || typeof cozulmus !== 'object') {
+            return res.status(401).json({ hata: 'Oturum gecersiz. Lutfen yeniden giris yapin.' });
+        }
+
         const kullaniciId = Number(cozulmus.id);
         const tokenVersion = Number(cozulmus.tokenVersion);
 

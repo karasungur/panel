@@ -4,7 +4,7 @@ const { hata } = require('./errors');
 const idSchema = z.coerce.number().int().positive();
 
 function zodHatalari(error) {
-    return error.issues.map(issue => ({
+    return error.issues.map((issue) => ({
         alan: issue.path.join('.') || 'root',
         mesaj: issue.message
     }));
@@ -40,10 +40,8 @@ function pozitifId(deger, alan = 'id') {
     return sonuc.data;
 }
 
-const optionalTrimmedString = (max = 255) => z.preprocess(
-    v => v === '' ? undefined : v,
-    z.string().trim().max(max).optional()
-);
+const optionalTrimmedString = (max = 255) =>
+    z.preprocess((v) => (v === '' ? undefined : v), z.string().trim().max(max).optional());
 
 module.exports = {
     z,

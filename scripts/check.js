@@ -21,21 +21,17 @@ const DOCUMENTED_ENV_KEYS = [
     'GEMINI_MODEL',
     'GEMINI_TIMEOUT_MS'
 ];
-const PRODUCTION_REQUIRED = [
-    'PORT',
-    'DATA_DIR',
-    'BACKUP_DIR',
-    'ADMIN_KULLANICI_ADI',
-    'ADMIN_SIFRE',
-    'JWT_SECRET'
-];
+const PRODUCTION_REQUIRED = ['PORT', 'DATA_DIR', 'BACKUP_DIR', 'ADMIN_KULLANICI_ADI', 'ADMIN_SIFRE', 'JWT_SECRET'];
 const PLACEHOLDER_PATTERN = /(admin123|gizli|degistir|change-me|example|varsayilan)/i;
 
 const errors = [];
 const warnings = [];
 
 function parseVersion(version) {
-    return version.replace(/^v/, '').split('.').map(part => Number.parseInt(part, 10));
+    return version
+        .replace(/^v/, '')
+        .split('.')
+        .map((part) => Number.parseInt(part, 10));
 }
 
 function compareVersions(left, right) {
@@ -59,9 +55,9 @@ function readEnvExampleKeys() {
     return new Set(
         content
             .split(/\r?\n/)
-            .map(line => line.trim())
-            .filter(line => line && !line.startsWith('#') && line.includes('='))
-            .map(line => line.split('=')[0].trim())
+            .map((line) => line.trim())
+            .filter((line) => line && !line.startsWith('#') && line.includes('='))
+            .map((line) => line.split('=')[0].trim())
     );
 }
 
@@ -151,4 +147,6 @@ if (errors.length > 0) {
     process.exit(1);
 }
 
-console.log(`Kontrol tamam: Node.js ${process.versions.node}, engine >=${MIN_NODE}, env dokumani ve temel dosyalar uygun.`);
+console.log(
+    `Kontrol tamam: Node.js ${process.versions.node}, engine >=${MIN_NODE}, env dokumani ve temel dosyalar uygun.`
+);

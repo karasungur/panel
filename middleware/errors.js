@@ -21,7 +21,7 @@ function errorHandler(err, req, res, next) {
     let status = err.status || err.statusCode || 500;
     let kod = err.kod || 'INTERNAL_ERROR';
     let mesaj = err.message || 'Sunucu hatasi.';
-    let detaylar = err.detaylar;
+    const detaylar = err.detaylar;
 
     if (err.type === 'entity.too.large') {
         status = 413;

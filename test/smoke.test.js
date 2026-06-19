@@ -25,9 +25,9 @@ function envExampleKeys() {
     return new Set(
         content
             .split(/\r?\n/)
-            .map(line => line.trim())
-            .filter(line => line && !line.startsWith('#') && line.includes('='))
-            .map(line => line.split('=')[0].trim())
+            .map((line) => line.trim())
+            .filter((line) => line && !line.startsWith('#') && line.includes('='))
+            .map((line) => line.split('=')[0].trim())
     );
 }
 
@@ -43,7 +43,7 @@ function restoreEnv(previous) {
 
 test('.env.example documents runtime keys', () => {
     const keys = envExampleKeys();
-    const missing = REQUIRED_ENV_KEYS.filter(key => !keys.has(key));
+    const missing = REQUIRED_ENV_KEYS.filter((key) => !keys.has(key));
     assert.deepEqual(missing, []);
 });
 
@@ -84,11 +84,16 @@ test('GET /api returns API status', async (t) => {
         delete require.cache[require.resolve('../database/db')];
     } catch (_) {}
 
-    let server;
+    const app = require('../server');
+    assert.equal(typeof app.listen, 'function');
+
+    const server = await new Promise((resolve, reject) => {
+        const listeningServer = app.listen(0, '127.0.0.1', () => resolve(listeningServer));
+        listeningServer.once('error', reject);
+    });
+
     t.after(async () => {
-        if (server) {
-            await new Promise(resolve => server.close(resolve));
-        }
+        await new Promise((resolve) => server.close(resolve));
 
         try {
             require('../database/db').close();
@@ -96,14 +101,6 @@ test('GET /api returns API status', async (t) => {
 
         restoreEnv(managedEnv);
         fs.rmSync(tmpDir, { recursive: true, force: true });
-    });
-
-    const app = require('../server');
-    assert.equal(typeof app.listen, 'function');
-
-    server = await new Promise((resolve, reject) => {
-        const listeningServer = app.listen(0, '127.0.0.1', () => resolve(listeningServer));
-        listeningServer.once('error', reject);
     });
 
     const { port } = server.address();

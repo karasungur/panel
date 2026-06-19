@@ -44,7 +44,9 @@ async function startTestServer(t) {
     process.env.GEMINI_TIMEOUT_MS = '15000';
 
     for (const modulePath of ['../server', '../database/db', '../database/seed']) {
-        try { delete require.cache[require.resolve(modulePath)]; } catch (_) {}
+        try {
+            delete require.cache[require.resolve(modulePath)];
+        } catch (_) {}
     }
 
     require('../database/seed');
@@ -55,8 +57,10 @@ async function startTestServer(t) {
     });
 
     t.after(async () => {
-        await new Promise(resolve => server.close(resolve));
-        try { require('../database/db').close(); } catch (_) {}
+        await new Promise((resolve) => server.close(resolve));
+        try {
+            require('../database/db').close();
+        } catch (_) {}
         restoreEnv(previousEnv);
         fs.rmSync(tmpDir, { recursive: true, force: true });
     });

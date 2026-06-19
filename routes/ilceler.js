@@ -1,23 +1,24 @@
 const express = require('express');
 const db = require('../database/db');
-const { tokenDogrula, adminVeyaYardimci } = require('../middleware/auth');
+const { tokenDogrula } = require('../middleware/auth');
 const { kayitFormatla } = require('../middleware/format');
 const router = express.Router();
 
 function kullanicininIlleri(kullaniciId) {
-    return db.prepare('SELECT il_id FROM kullanici_iller WHERE kullanici_id = ?')
+    return db
+        .prepare('SELECT il_id FROM kullanici_iller WHERE kullanici_id = ?')
         .all(kullaniciId)
-        .map(r => r.il_id);
+        .map((r) => r.il_id);
 }
 
 function ileErisebilir(req, il_id) {
-    if ((req.kullanici.rol === 'admin' || req.kullanici.rol === 'yardimci')) return true;
+    if (req.kullanici.rol === 'admin' || req.kullanici.rol === 'yardimci') return true;
     return kullanicininIlleri(req.kullanici.id).includes(il_id);
 }
 
 // GET /api/ilceler?il_id=X
 router.get('/', tokenDogrula, (req, res) => {
-    const il_id = parseInt(req.query.il_id);
+    const il_id = parseInt(String(req.query.il_id || ''), 10);
     if (!il_id) return res.status(400).json({ hata: 'il_id parametresi gereklidir.' });
     if (!ileErisebilir(req, il_id)) {
         return res.status(403).json({ hata: 'Bu ile erişim yetkiniz yok.' });
@@ -34,8 +35,7 @@ router.post('/', tokenDogrula, (req, res) => {
         return res.status(403).json({ hata: 'Bu ile erişim yetkiniz yok.' });
     }
     try {
-        const sonuc = db.prepare('INSERT INTO ilceler (il_id, ilce_adi) VALUES (?, ?)')
-            .run(il_id, ilce_adi);
+        const sonuc = db.prepare('INSERT INTO ilceler (il_id, ilce_adi) VALUES (?, ?)').run(il_id, ilce_adi);
         res.status(201).json({ mesaj: 'İlçe eklendi.', id: sonuc.lastInsertRowid });
     } catch (err) {
         if (err.message.includes('UNIQUE')) {
@@ -53,15 +53,23 @@ router.put('/:id', tokenDogrula, (req, res) => {
         return res.status(403).json({ hata: 'Bu ilçeye erişim yetkiniz yok.' });
     }
     const {
-        ilce_adi, baskan_ad_soyad, baskan_telefon, baskan_tc, baskan_foto,
-        instagram_url, twitter_url, facebook_url, tiktok_url
+        ilce_adi,
+        baskan_ad_soyad,
+        baskan_telefon,
+        baskan_tc,
+        baskan_foto,
+        instagram_url,
+        twitter_url,
+        facebook_url,
+        tiktok_url
     } = req.body;
 
     // Formatla
     const f = kayitFormatla({ baskan_ad_soyad, baskan_telefon, instagram_url, twitter_url, facebook_url, tiktok_url });
 
     try {
-        db.prepare(`
+        db.prepare(
+            `
             UPDATE ilceler SET
                 ilce_adi        = COALESCE(?, ilce_adi),
                 baskan_ad_soyad = COALESCE(?, baskan_ad_soyad),
@@ -73,9 +81,17 @@ router.put('/:id', tokenDogrula, (req, res) => {
                 facebook_url    = COALESCE(?, facebook_url),
                 tiktok_url      = COALESCE(?, tiktok_url)
             WHERE id = ?
-        `).run(
-            ilce_adi ?? null, f.baskan_ad_soyad ?? null, f.baskan_telefon ?? null, baskan_tc ?? null, baskan_foto ?? null,
-            f.instagram_url ?? null, f.twitter_url ?? null, f.facebook_url ?? null, f.tiktok_url ?? null,
+        `
+        ).run(
+            ilce_adi ?? null,
+            f.baskan_ad_soyad ?? null,
+            f.baskan_telefon ?? null,
+            baskan_tc ?? null,
+            baskan_foto ?? null,
+            f.instagram_url ?? null,
+            f.twitter_url ?? null,
+            f.facebook_url ?? null,
+            f.tiktok_url ?? null,
             parseInt(req.params.id)
         );
         res.json({ mesaj: 'İlçe güncellendi.' });
@@ -110,30 +126,49 @@ router.post('/toplu', tokenDogrula, (req, res) => {
         baskan_ad_soyad = ?, baskan_telefon = ?, baskan_tc = ?, baskan_foto = ?,
         instagram_url = ?, twitter_url = ?, facebook_url = ?, tiktok_url = ?
         WHERE id = ? AND il_id = ?`);
-    const ekle = db.prepare(`INSERT INTO ilceler (il_id, ilce_adi, baskan_ad_soyad, baskan_telefon, baskan_tc, baskan_foto, instagram_url, twitter_url, facebook_url, tiktok_url)
+    const ekle =
+        db.prepare(`INSERT INTO ilceler (il_id, ilce_adi, baskan_ad_soyad, baskan_telefon, baskan_tc, baskan_foto, instagram_url, twitter_url, facebook_url, tiktok_url)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
-    let guncellenen = 0, eklenen = 0, hata = 0;
+    let guncellenen = 0,
+        eklenen = 0,
+        hata = 0;
     db.withTransaction(() => {
         for (const s of satirlar) {
             try {
                 const f = kayitFormatla(s);
                 if (s.id) {
                     const sonuc = guncelle.run(
-                        f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
-                        f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null,
-                        parseInt(s.id), parseInt(il_id)
+                        f.baskan_ad_soyad || null,
+                        f.baskan_telefon || null,
+                        s.baskan_tc || null,
+                        s.baskan_foto || null,
+                        f.instagram_url || null,
+                        f.twitter_url || null,
+                        f.facebook_url || null,
+                        f.tiktok_url || null,
+                        parseInt(s.id),
+                        parseInt(il_id)
                     );
                     if (sonuc.changes > 0) guncellenen++;
                 } else if (s.ilce_adi && s.ilce_adi.trim()) {
                     ekle.run(
-                        parseInt(il_id), s.ilce_adi.trim(),
-                        f.baskan_ad_soyad || null, f.baskan_telefon || null, s.baskan_tc || null, s.baskan_foto || null,
-                        f.instagram_url || null, f.twitter_url || null, f.facebook_url || null, f.tiktok_url || null
+                        parseInt(il_id),
+                        s.ilce_adi.trim(),
+                        f.baskan_ad_soyad || null,
+                        f.baskan_telefon || null,
+                        s.baskan_tc || null,
+                        s.baskan_foto || null,
+                        f.instagram_url || null,
+                        f.twitter_url || null,
+                        f.facebook_url || null,
+                        f.tiktok_url || null
                     );
                     eklenen++;
                 }
-            } catch(e) { hata++; }
+            } catch (_e) {
+                hata++;
+            }
         }
     });
     res.json({ mesaj: 'Toplu güncelleme tamamlandı.', guncellenen, eklenen, hata });

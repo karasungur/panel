@@ -30,7 +30,7 @@ function kilitMi(ip) {
 function yanlisDeneme(ip) {
     const simdi = Date.now();
     let k = yanlisDenemeler.get(ip);
-    if (k && (simdi - k.ilkDeneme) > SAYACI_SIFIRLA_MS) {
+    if (k && simdi - k.ilkDeneme > SAYACI_SIFIRLA_MS) {
         k = null;
     }
     if (!k) {
@@ -73,7 +73,7 @@ router.post('/login', (req, res) => {
         return res.status(401).json({ hata: 'Kullanıcı adı veya şifre hatalı. Kalan deneme: ' + kalan });
     }
 
-    const sifreDogru = bcrypt.compareSync(sifre, kullanici.sifre);
+    const sifreDogru = bcrypt.compareSync(sifre, String(kullanici.sifre || ''));
     if (!sifreDogru) {
         const kalan = yanlisDeneme(ip);
         if (kalan <= 0) {
@@ -94,7 +94,8 @@ router.post('/login', (req, res) => {
             rol: kullanici.rol,
             tokenVersion: Number(kullanici.token_version) || 0
         },
-        JWT_SECRET, { expiresIn: '8h' }
+        JWT_SECRET,
+        { expiresIn: '8h' }
     );
 
     res.json({
@@ -113,11 +114,15 @@ router.post('/login', (req, res) => {
 });
 
 router.get('/me', tokenDogrula, (req, res) => {
-    const iller = db.prepare(`
+    const iller = db
+        .prepare(
+            `
         SELECT i.id, i.il_adi FROM kullanici_iller ki
         JOIN iller i ON ki.il_id = i.id
         WHERE ki.kullanici_id = ? ORDER BY i.plaka
-    `).all(req.kullanici.id);
+    `
+        )
+        .all(req.kullanici.id);
     res.json({ ...req.kullanici, iller });
 });
 

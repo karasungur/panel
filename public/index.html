@@ -1,108 +1,288 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Giriş — Tanıtım ve Medya Paneli</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-<style>
-:root{
-  --primary:#00193c; --primary-container:#002d62; --on-primary:#fff;
-  --bg:#f7f9fb; --surface:#fff; --surface-low:#f2f4f6; --surface-container:#eceef0;
-  --on-surface:#191c1e; --secondary:#505f76; --outline:#747781; --outline-variant:#c4c6d1;
-  --error:#ba1a1a; --error-container:#ffdad6;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',sans-serif;background:var(--bg);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;
-  background-image:radial-gradient(at 0% 0%,#e8f0ff 0,transparent 50%),radial-gradient(at 100% 100%,#eaf2ff 0,transparent 50%);}
-.kart{width:100%;max-width:430px}
-.marka{display:flex;flex-direction:column;align-items:center;margin-bottom:28px}
-.logo{width:64px;height:64px;background:var(--primary);border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;box-shadow:0 8px 24px rgba(0,25,60,.2)}
-.logo svg{width:34px;height:34px;fill:#fff}
-.marka h1{font-size:24px;color:var(--primary);font-weight:800;letter-spacing:-.5px;text-align:center}
-.marka p{font-size:14px;color:var(--secondary);margin-top:4px}
-.form-kart{background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.6);box-shadow:0 4px 32px rgba(0,25,60,.08);border-radius:16px;padding:36px}
-.alan{margin-bottom:20px}
-label{display:block;font-size:12px;font-weight:600;color:var(--secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.input-sar{position:relative}
-.input-sar svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;fill:var(--outline)}
-input{width:100%;background:var(--surface-low);border:1px solid var(--outline-variant);border-radius:10px;padding:13px 14px 13px 42px;font-size:14px;color:var(--on-surface);font-family:inherit;transition:.15s}
-input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(0,25,60,.1)}
-.giris-btn{width:100%;background:var(--primary);color:#fff;border:none;border-radius:10px;padding:14px;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s;margin-top:6px}
-.giris-btn:hover{background:var(--primary-container)}
-.giris-btn:disabled{opacity:.7;cursor:wait}
-.hata{display:none;background:var(--error-container);color:#93000a;padding:11px;border-radius:8px;font-size:13px;margin-top:16px;text-align:center}
-.alt-uyari{margin-top:24px;text-align:center}
-.alt-uyari .rozet{display:inline-flex;align-items:center;gap:6px;background:rgba(186,26,26,.08);border:1px solid rgba(186,26,26,.15);color:#93000a;padding:7px 14px;border-radius:99px;font-size:12px;font-weight:500}
-.telif{margin-top:14px;font-size:12px;color:var(--outline-variant)}
-</style>
-</head>
-<body>
-<div class="kart">
-  <div class="marka">
-    <div class="logo"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.2L19.5 8 12 11.8 4.5 8 12 4.2zM4 9.3l7 3.5v6.9l-7-3.5V9.3zm9 10.4v-6.9l7-3.5v6.9l-7 3.5z"/></svg></div>
-    <h1>Tanıtım ve Medya Paneli</h1>
-    <p>Gençlik Kolları</p>
-  </div>
-  <div class="form-kart">
-    <div class="alan">
-      <label>Kullanıcı Adı</label>
-      <div class="input-sar">
-        <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-        <input type="text" id="kullanici_adi" placeholder="Kullanıcı adınız" autocomplete="username">
-      </div>
-    </div>
-    <div class="alan">
-      <label>Şifre</label>
-      <div class="input-sar">
-        <svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/></svg>
-        <input type="password" id="sifre" placeholder="Şifreniz" autocomplete="current-password">
-      </div>
-    </div>
-    <button class="giris-btn" id="giris-btn" onclick="girisYap()">
-      <span>Giriş Yap</span>
-      <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:#fff"><path d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"/></svg>
-    </button>
-    <div class="hata" id="hata-mesaji"></div>
-  </div>
-  <div class="alt-uyari">
-    <span class="rozet">
-      <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#93000a"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11V11.99z"/></svg>
-      Yetkisiz girişler engellenmektedir.
-    </span>
-    <p class="telif">© 2026 Tanıtım ve Medya Paneli</p>
-  </div>
-</div>
-<script>
-document.addEventListener('keydown',e=>{if(e.key==='Enter')girisYap();});
-async function yanitJsonOku(cevap){
-  try{return await cevap.json();}catch(e){return {};}
-}
-async function girisYap(){
-  const kullanici_adi=document.getElementById('kullanici_adi').value.trim();
-  const sifre=document.getElementById('sifre').value;
-  const hataEl=document.getElementById('hata-mesaji');
-  const btn=document.getElementById('giris-btn');
-  hataEl.style.display='none';
-  btn.disabled=true;
-  try{
-    const cevap=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kullanici_adi,sifre})});
-    const veri=await yanitJsonOku(cevap);
-    if(cevap.ok&&veri.token&&veri.kullanici){
-      localStorage.setItem('token',veri.token);
-      localStorage.setItem('kullanici',JSON.stringify(veri.kullanici));
-      window.location.href='/panel.html';
-    }else{
-      hataEl.textContent=veri.hata||'Giriş başarısız.';
-      hataEl.style.display='block';
-      btn.disabled=false;
-    }
-  }catch(err){
-    hataEl.textContent='Sunucuya bağlanılamadı.';
-    hataEl.style.display='block';
-    btn.disabled=false;
-  }
-}
-</script>
-</body>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Giriş — Tanıtım ve Medya Paneli</title>
+        <link
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --primary: #00193c;
+                --primary-container: #002d62;
+                --on-primary: #fff;
+                --bg: #f7f9fb;
+                --surface: #fff;
+                --surface-low: #f2f4f6;
+                --surface-container: #eceef0;
+                --on-surface: #191c1e;
+                --secondary: #505f76;
+                --outline: #747781;
+                --outline-variant: #c4c6d1;
+                --error: #ba1a1a;
+                --error-container: #ffdad6;
+            }
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            body {
+                font-family: 'Inter', sans-serif;
+                background: var(--bg);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 16px;
+                background-image:
+                    radial-gradient(at 0% 0%, #e8f0ff 0, transparent 50%),
+                    radial-gradient(at 100% 100%, #eaf2ff 0, transparent 50%);
+            }
+            .kart {
+                width: 100%;
+                max-width: 430px;
+            }
+            .marka {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                margin-bottom: 28px;
+            }
+            .logo {
+                width: 64px;
+                height: 64px;
+                background: var(--primary);
+                border-radius: 16px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-bottom: 16px;
+                box-shadow: 0 8px 24px rgba(0, 25, 60, 0.2);
+            }
+            .logo svg {
+                width: 34px;
+                height: 34px;
+                fill: #fff;
+            }
+            .marka h1 {
+                font-size: 24px;
+                color: var(--primary);
+                font-weight: 800;
+                letter-spacing: -0.5px;
+                text-align: center;
+            }
+            .marka p {
+                font-size: 14px;
+                color: var(--secondary);
+                margin-top: 4px;
+            }
+            .form-kart {
+                background: rgba(255, 255, 255, 0.85);
+                backdrop-filter: blur(12px);
+                border: 1px solid rgba(255, 255, 255, 0.6);
+                box-shadow: 0 4px 32px rgba(0, 25, 60, 0.08);
+                border-radius: 16px;
+                padding: 36px;
+            }
+            .alan {
+                margin-bottom: 20px;
+            }
+            label {
+                display: block;
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--secondary);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                margin-bottom: 8px;
+            }
+            .input-sar {
+                position: relative;
+            }
+            .input-sar svg {
+                position: absolute;
+                left: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 20px;
+                height: 20px;
+                fill: var(--outline);
+            }
+            input {
+                width: 100%;
+                background: var(--surface-low);
+                border: 1px solid var(--outline-variant);
+                border-radius: 10px;
+                padding: 13px 14px 13px 42px;
+                font-size: 14px;
+                color: var(--on-surface);
+                font-family: inherit;
+                transition: 0.15s;
+            }
+            input:focus {
+                outline: none;
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px rgba(0, 25, 60, 0.1);
+            }
+            .giris-btn {
+                width: 100%;
+                background: var(--primary);
+                color: #fff;
+                border: none;
+                border-radius: 10px;
+                padding: 14px;
+                font-size: 16px;
+                font-weight: 600;
+                font-family: inherit;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                transition: 0.15s;
+                margin-top: 6px;
+            }
+            .giris-btn:hover {
+                background: var(--primary-container);
+            }
+            .giris-btn:disabled {
+                opacity: 0.7;
+                cursor: wait;
+            }
+            .hata {
+                display: none;
+                background: var(--error-container);
+                color: #93000a;
+                padding: 11px;
+                border-radius: 8px;
+                font-size: 13px;
+                margin-top: 16px;
+                text-align: center;
+            }
+            .alt-uyari {
+                margin-top: 24px;
+                text-align: center;
+            }
+            .alt-uyari .rozet {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                background: rgba(186, 26, 26, 0.08);
+                border: 1px solid rgba(186, 26, 26, 0.15);
+                color: #93000a;
+                padding: 7px 14px;
+                border-radius: 99px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+            .telif {
+                margin-top: 14px;
+                font-size: 12px;
+                color: var(--outline-variant);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="kart">
+            <div class="marka">
+                <div class="logo">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M12 2L2 7v10l10 5 10-5V7L12 2zm0 2.2L19.5 8 12 11.8 4.5 8 12 4.2zM4 9.3l7 3.5v6.9l-7-3.5V9.3zm9 10.4v-6.9l7-3.5v6.9l-7 3.5z"
+                        />
+                    </svg>
+                </div>
+                <h1>Tanıtım ve Medya Paneli</h1>
+                <p>Gençlik Kolları</p>
+            </div>
+            <div class="form-kart">
+                <div class="alan">
+                    <label>Kullanıcı Adı</label>
+                    <div class="input-sar">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                            />
+                        </svg>
+                        <input type="text" id="kullanici_adi" placeholder="Kullanıcı adınız" autocomplete="username" />
+                    </div>
+                </div>
+                <div class="alan">
+                    <label>Şifre</label>
+                    <div class="input-sar">
+                        <svg viewBox="0 0 24 24">
+                            <path
+                                d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"
+                            />
+                        </svg>
+                        <input type="password" id="sifre" placeholder="Şifreniz" autocomplete="current-password" />
+                    </div>
+                </div>
+                <button class="giris-btn" id="giris-btn" onclick="girisYap()">
+                    <span>Giriş Yap</span>
+                    <svg viewBox="0 0 24 24" style="width: 20px; height: 20px; fill: #fff">
+                        <path
+                            d="M11 7L9.6 8.4l2.6 2.6H2v2h10.2l-2.6 2.6L11 17l5-5-5-5zm9 12h-8v2h8c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-8v2h8v14z"
+                        />
+                    </svg>
+                </button>
+                <div class="hata" id="hata-mesaji"></div>
+            </div>
+            <div class="alt-uyari">
+                <span class="rozet">
+                    <svg viewBox="0 0 24 24" style="width: 16px; height: 16px; fill: #93000a">
+                        <path
+                            d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11V11.99z"
+                        />
+                    </svg>
+                    Yetkisiz girişler engellenmektedir.
+                </span>
+                <p class="telif">© 2026 Tanıtım ve Medya Paneli</p>
+            </div>
+        </div>
+        <script>
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') girisYap();
+            });
+            async function yanitJsonOku(cevap) {
+                try {
+                    return await cevap.json();
+                } catch (e) {
+                    return {};
+                }
+            }
+            async function girisYap() {
+                const kullanici_adi = document.getElementById('kullanici_adi').value.trim();
+                const sifre = document.getElementById('sifre').value;
+                const hataEl = document.getElementById('hata-mesaji');
+                const btn = document.getElementById('giris-btn');
+                hataEl.style.display = 'none';
+                btn.disabled = true;
+                try {
+                    const cevap = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ kullanici_adi, sifre })
+                    });
+                    const veri = await yanitJsonOku(cevap);
+                    if (cevap.ok && veri.token && veri.kullanici) {
+                        localStorage.setItem('token', veri.token);
+                        localStorage.setItem('kullanici', JSON.stringify(veri.kullanici));
+                        window.location.href = '/panel.html';
+                    } else {
+                        hataEl.textContent = veri.hata || 'Giriş başarısız.';
+                        hataEl.style.display = 'block';
+                        btn.disabled = false;
+                    }
+                } catch (err) {
+                    hataEl.textContent = 'Sunucuya bağlanılamadı.';
+                    hataEl.style.display = 'block';
+                    btn.disabled = false;
+                }
+            }
+        </script>
+    </body>
 </html>

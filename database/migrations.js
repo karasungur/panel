@@ -17,7 +17,9 @@ function transaction(db, fn) {
         db.exec('COMMIT');
         return sonuc;
     } catch (err) {
-        try { db.exec('ROLLBACK'); } catch (_) {}
+        try {
+            db.exec('ROLLBACK');
+        } catch (_) {}
         throw err;
     }
 }
@@ -44,7 +46,10 @@ function tableSql(db, table) {
 
 function columns(db, table) {
     if (!tableExists(db, table)) return [];
-    return db.prepare(`PRAGMA table_info(${quoteIdentifier(table)})`).all().map(kolon => kolon.name);
+    return db
+        .prepare(`PRAGMA table_info(${quoteIdentifier(table)})`)
+        .all()
+        .map((kolon) => kolon.name);
 }
 
 function foreignKeys(db, table) {
@@ -53,7 +58,7 @@ function foreignKeys(db, table) {
 }
 
 function hasForeignKey(db, table, from, toTable) {
-    return foreignKeys(db, table).some(fk => fk.from === from && fk.table === toTable);
+    return foreignKeys(db, table).some((fk) => fk.from === from && fk.table === toTable);
 }
 
 function ensureSchemaMigrations(db) {
@@ -74,10 +79,11 @@ function ensureSchemaMigrations(db) {
 function loadMigrations() {
     if (!fs.existsSync(migrationsDir)) return [];
 
-    const migrations = fs.readdirSync(migrationsDir)
-        .filter(dosya => dosya.endsWith('.js'))
+    const migrations = fs
+        .readdirSync(migrationsDir)
+        .filter((dosya) => dosya.endsWith('.js'))
         .sort()
-        .map(dosya => {
+        .map((dosya) => {
             const migration = require(path.join(migrationsDir, dosya));
             if (!migration || typeof migration.up !== 'function' || !migration.id) {
                 throw new Error(`Gecersiz migration dosyasi: ${dosya}`);
@@ -97,12 +103,19 @@ function loadMigrations() {
 }
 
 function appliedMigrationIds(db) {
-    return new Set(db.prepare('SELECT id FROM schema_migrations').all().map(row => row.id));
+    return new Set(
+        db
+            .prepare('SELECT id FROM schema_migrations')
+            .all()
+            .map((row) => row.id)
+    );
 }
 
 function recordMigration(db, migration) {
-    db.prepare('INSERT INTO schema_migrations (id, description) VALUES (?, ?)')
-        .run(migration.id, migration.description || '');
+    db.prepare('INSERT INTO schema_migrations (id, description) VALUES (?, ?)').run(
+        migration.id,
+        migration.description || ''
+    );
 }
 
 function runMigrations(db) {

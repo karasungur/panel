@@ -5,7 +5,9 @@ function count(db, sql) {
 function assertNoDuplicateIller(db, helpers) {
     if (!helpers.tableExists(db, 'iller')) return;
 
-    const tekrarli = count(db, `
+    const tekrarli = count(
+        db,
+        `
         SELECT COUNT(*) AS s
         FROM (
             SELECT plaka
@@ -14,7 +16,8 @@ function assertNoDuplicateIller(db, helpers) {
             GROUP BY plaka
             HAVING COUNT(*) > 1
         )
-    `);
+    `
+    );
     if (tekrarli > 0) {
         throw new Error('iller.plaka icin tekrarli kayitlar var; unique index uygulanmadan once temizlenmeli.');
     }
@@ -23,7 +26,9 @@ function assertNoDuplicateIller(db, helpers) {
 function assertNoDuplicateIlceler(db, helpers) {
     if (!helpers.tableExists(db, 'ilceler')) return;
 
-    const tekrarli = count(db, `
+    const tekrarli = count(
+        db,
+        `
         SELECT COUNT(*) AS s
         FROM (
             SELECT il_id, ilce_adi
@@ -31,27 +36,33 @@ function assertNoDuplicateIlceler(db, helpers) {
             GROUP BY il_id, ilce_adi
             HAVING COUNT(*) > 1
         )
-    `);
+    `
+    );
     if (tekrarli > 0) {
-        throw new Error('ilceler(il_id, ilce_adi) icin tekrarli kayitlar var; unique index uygulanmadan once temizlenmeli.');
+        throw new Error(
+            'ilceler(il_id, ilce_adi) icin tekrarli kayitlar var; unique index uygulanmadan once temizlenmeli.'
+        );
     }
 }
 
 function assertNoTaskOwnerOrphans(db, helpers) {
     if (!helpers.tableExists(db, 'gorevler') || !helpers.tableExists(db, 'kullanicilar')) return;
 
-    const orphanCount = count(db, `
+    const orphanCount = count(
+        db,
+        `
         SELECT COUNT(*) AS s
         FROM gorevler g
         LEFT JOIN kullanicilar k ON k.id = g.kullanici_id
         WHERE k.id IS NULL
-    `);
+    `
+    );
     if (orphanCount > 0) {
         throw new Error('gorevler.kullanici_id icin yetim kayitlar var; FK uygulanmadan once temizlenmeli.');
     }
 }
 
-function rebuildGorevler(db, helpers) {
+function rebuildGorevler(db) {
     db.exec(`
         CREATE TABLE gorevler_yeni (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -165,19 +176,20 @@ function hasUniqueIndexOn(db, table, columns) {
     const indexes = db.prepare(`PRAGMA index_list(${quote(table)})`).all();
 
     return indexes
-        .filter(index => index.unique)
-        .some(index => {
-            const actual = db.prepare(`PRAGMA index_info(${quote(index.name)})`)
+        .filter((index) => index.unique)
+        .some((index) => {
+            const actual = db
+                .prepare(`PRAGMA index_info(${quote(index.name)})`)
                 .all()
                 .sort((a, b) => a.seqno - b.seqno)
-                .map(row => row.name)
+                .map((row) => row.name)
                 .join(',');
             return actual === expected;
         });
 }
 
 function execIfTablesExist(db, helpers, tables, sql) {
-    if (tables.every(table => helpers.tableExists(db, table))) {
+    if (tables.every((table) => helpers.tableExists(db, table))) {
         db.exec(sql);
     }
 }
@@ -186,27 +198,112 @@ function createIndexes(db, helpers) {
     if (helpers.tableExists(db, 'iller') && !hasUniqueIndexOn(db, 'iller', ['plaka'])) {
         db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_iller_plaka_unique ON iller(plaka) WHERE plaka IS NOT NULL');
     }
-    execIfTablesExist(db, helpers, ['ilceler'], 'CREATE UNIQUE INDEX IF NOT EXISTS idx_ilceler_il_ad_unique ON ilceler(il_id, ilce_adi)');
+    execIfTablesExist(
+        db,
+        helpers,
+        ['ilceler'],
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_ilceler_il_ad_unique ON ilceler(il_id, ilce_adi)'
+    );
 
-    execIfTablesExist(db, helpers, ['kullanicilar'], 'CREATE INDEX IF NOT EXISTS idx_kullanicilar_rol ON kullanicilar(rol)');
+    execIfTablesExist(
+        db,
+        helpers,
+        ['kullanicilar'],
+        'CREATE INDEX IF NOT EXISTS idx_kullanicilar_rol ON kullanicilar(rol)'
+    );
     execIfTablesExist(db, helpers, ['ilceler'], 'CREATE INDEX IF NOT EXISTS idx_ilceler_il_id ON ilceler(il_id)');
-    execIfTablesExist(db, helpers, ['ilceler'], 'CREATE INDEX IF NOT EXISTS idx_ilceler_il_ad ON ilceler(il_id, ilce_adi)');
-    execIfTablesExist(db, helpers, ['kullanici_iller'], 'CREATE INDEX IF NOT EXISTS idx_kullanici_iller_kid ON kullanici_iller(kullanici_id)');
-    execIfTablesExist(db, helpers, ['kullanici_iller'], 'CREATE INDEX IF NOT EXISTS idx_kullanici_iller_iid ON kullanici_iller(il_id)');
-    execIfTablesExist(db, helpers, ['gorevler'], 'CREATE INDEX IF NOT EXISTS idx_gorevler_kid ON gorevler(kullanici_id)');
-    execIfTablesExist(db, helpers, ['gorevler'], 'CREATE INDEX IF NOT EXISTS idx_gorevler_kullanici_durum_son ON gorevler(kullanici_id, durum, son_tarih)');
-    execIfTablesExist(db, helpers, ['gorevler'], 'CREATE INDEX IF NOT EXISTS idx_gorevler_olusturan ON gorevler(olusturan_id)');
-    execIfTablesExist(db, helpers, ['bildirimler'], 'CREATE INDEX IF NOT EXISTS idx_bildirimler_kid ON bildirimler(kullanici_id, okundu)');
-    execIfTablesExist(db, helpers, ['bildirimler'], 'CREATE INDEX IF NOT EXISTS idx_bildirimler_kid_id ON bildirimler(kullanici_id, id DESC)');
-    execIfTablesExist(db, helpers, ['bildirimler'], 'CREATE INDEX IF NOT EXISTS idx_bildirimler_unread_id ON bildirimler(kullanici_id, okundu, id DESC)');
+    execIfTablesExist(
+        db,
+        helpers,
+        ['ilceler'],
+        'CREATE INDEX IF NOT EXISTS idx_ilceler_il_ad ON ilceler(il_id, ilce_adi)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['kullanici_iller'],
+        'CREATE INDEX IF NOT EXISTS idx_kullanici_iller_kid ON kullanici_iller(kullanici_id)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['kullanici_iller'],
+        'CREATE INDEX IF NOT EXISTS idx_kullanici_iller_iid ON kullanici_iller(il_id)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['gorevler'],
+        'CREATE INDEX IF NOT EXISTS idx_gorevler_kid ON gorevler(kullanici_id)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['gorevler'],
+        'CREATE INDEX IF NOT EXISTS idx_gorevler_kullanici_durum_son ON gorevler(kullanici_id, durum, son_tarih)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['gorevler'],
+        'CREATE INDEX IF NOT EXISTS idx_gorevler_olusturan ON gorevler(olusturan_id)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['bildirimler'],
+        'CREATE INDEX IF NOT EXISTS idx_bildirimler_kid ON bildirimler(kullanici_id, okundu)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['bildirimler'],
+        'CREATE INDEX IF NOT EXISTS idx_bildirimler_kid_id ON bildirimler(kullanici_id, id DESC)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['bildirimler'],
+        'CREATE INDEX IF NOT EXISTS idx_bildirimler_unread_id ON bildirimler(kullanici_id, okundu, id DESC)'
+    );
     execIfTablesExist(db, helpers, ['mesajlar'], 'CREATE INDEX IF NOT EXISTS idx_mesajlar_tarih ON mesajlar(tarih)');
-    execIfTablesExist(db, helpers, ['ozel_mesajlar'], 'CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_kisiler ON ozel_mesajlar(gonderen_id, alici_id, id)');
-    execIfTablesExist(db, helpers, ['ozel_mesajlar'], 'CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_okunmamis ON ozel_mesajlar(alici_id, okundu)');
-    execIfTablesExist(db, helpers, ['ozel_mesajlar'], 'CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_alici_gonderen_id ON ozel_mesajlar(alici_id, gonderen_id, id)');
-    execIfTablesExist(db, helpers, ['ozel_mesajlar'], 'CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_gonderen_alici_id ON ozel_mesajlar(gonderen_id, alici_id, id)');
-    execIfTablesExist(db, helpers, ['yaziyor'], 'CREATE INDEX IF NOT EXISTS idx_yaziyor_alici ON yaziyor(alici_id, kullanici_id)');
+    execIfTablesExist(
+        db,
+        helpers,
+        ['ozel_mesajlar'],
+        'CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_kisiler ON ozel_mesajlar(gonderen_id, alici_id, id)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['ozel_mesajlar'],
+        'CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_okunmamis ON ozel_mesajlar(alici_id, okundu)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['ozel_mesajlar'],
+        'CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_alici_gonderen_id ON ozel_mesajlar(alici_id, gonderen_id, id)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['ozel_mesajlar'],
+        'CREATE INDEX IF NOT EXISTS idx_ozel_mesajlar_gonderen_alici_id ON ozel_mesajlar(gonderen_id, alici_id, id)'
+    );
+    execIfTablesExist(
+        db,
+        helpers,
+        ['yaziyor'],
+        'CREATE INDEX IF NOT EXISTS idx_yaziyor_alici ON yaziyor(alici_id, kullanici_id)'
+    );
     execIfTablesExist(db, helpers, ['notlar'], 'CREATE INDEX IF NOT EXISTS idx_notlar_kid ON notlar(kullanici_id)');
-    execIfTablesExist(db, helpers, ['notlar'], 'CREATE INDEX IF NOT EXISTS idx_notlar_kid_guncel ON notlar(kullanici_id, guncellenme_tarihi DESC)');
+    execIfTablesExist(
+        db,
+        helpers,
+        ['notlar'],
+        'CREATE INDEX IF NOT EXISTS idx_notlar_kid_guncel ON notlar(kullanici_id, guncellenme_tarihi DESC)'
+    );
 }
 
 module.exports = {
@@ -220,17 +317,23 @@ module.exports = {
 
         helpers.withForeignKeysDisabled(db, () => {
             helpers.transaction(db, () => {
-                if (helpers.tableExists(db, 'gorevler')
-                    && !helpers.hasForeignKey(db, 'gorevler', 'olusturan_id', 'kullanicilar')) {
-                    rebuildGorevler(db, helpers);
+                if (
+                    helpers.tableExists(db, 'gorevler') &&
+                    !helpers.hasForeignKey(db, 'gorevler', 'olusturan_id', 'kullanicilar')
+                ) {
+                    rebuildGorevler(db);
                 }
-                if (helpers.tableExists(db, 'mesajlar')
-                    && !helpers.hasForeignKey(db, 'mesajlar', 'kullanici_id', 'kullanicilar')) {
+                if (
+                    helpers.tableExists(db, 'mesajlar') &&
+                    !helpers.hasForeignKey(db, 'mesajlar', 'kullanici_id', 'kullanicilar')
+                ) {
                     rebuildMesajlar(db);
                 }
-                if (helpers.tableExists(db, 'yaziyor')
-                    && (!helpers.hasForeignKey(db, 'yaziyor', 'kullanici_id', 'kullanicilar')
-                    || !helpers.hasForeignKey(db, 'yaziyor', 'alici_id', 'kullanicilar'))) {
+                if (
+                    helpers.tableExists(db, 'yaziyor') &&
+                    (!helpers.hasForeignKey(db, 'yaziyor', 'kullanici_id', 'kullanicilar') ||
+                        !helpers.hasForeignKey(db, 'yaziyor', 'alici_id', 'kullanicilar'))
+                ) {
                     rebuildYaziyor(db);
                 }
             });

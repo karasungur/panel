@@ -1,0 +1,9 @@
+node_modules
+coverage
+.env
+*.log
+*.db
+database/uploads
+public/uploads
+public/turkiye*.svg
+package-lock.json

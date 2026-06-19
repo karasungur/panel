@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const helmet = require('helmet');
+const helmet = require('helmet').default;
 const path = require('path');
 
 const authRouter = require('./routes/auth');
@@ -37,11 +37,11 @@ function trustProxyAyariniAl() {
 function originListesiAl() {
     return (process.env.CORS_ORIGINS || process.env.CORS_ALLOWLIST || process.env.APP_ORIGIN || '')
         .split(',')
-        .map(o => o.trim())
-        .map(o => {
+        .map((o) => o.trim())
+        .map((o) => {
             try {
                 return new URL(o).origin;
-            } catch (err) {
+            } catch (_err) {
                 return o;
             }
         })
@@ -52,7 +52,7 @@ function ayniOriginMi(req, origin) {
     try {
         const originUrl = new URL(origin);
         return originUrl.protocol === `${req.protocol}:` && originUrl.host === req.get('host');
-    } catch (err) {
+    } catch (_err) {
         return false;
     }
 }
@@ -62,45 +62,49 @@ const izinliOriginler = new Set(originListesiAl());
 app.disable('x-powered-by');
 app.set('trust proxy', trustProxyAyariniAl());
 
-app.use(helmet({
-    contentSecurityPolicy: {
-        directives: {
-            defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrcAttr: ["'unsafe-inline'"],
-            styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
-            fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-            imgSrc: ["'self'", 'data:'],
-            connectSrc: ["'self'"],
-            frameAncestors: ["'none'"]
+app.use(
+    helmet({
+        contentSecurityPolicy: {
+            directives: {
+                defaultSrc: ["'self'"],
+                scriptSrc: ["'self'", "'unsafe-inline'"],
+                scriptSrcAttr: ["'unsafe-inline'"],
+                styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+                fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+                imgSrc: ["'self'", 'data:'],
+                connectSrc: ["'self'"],
+                frameAncestors: ["'none'"]
+            }
+        },
+        crossOriginEmbedderPolicy: false
+    })
+);
+
+app.use(
+    cors((req, callback) => {
+        const origin = req.get('origin');
+        const temelAyarlar = {
+            credentials: false,
+            methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Content-Type', 'Authorization'],
+            maxAge: 600,
+            optionsSuccessStatus: 204
+        };
+
+        if (!origin) {
+            return callback(null, { ...temelAyarlar, origin: false });
         }
-    },
-    crossOriginEmbedderPolicy: false
-}));
 
-app.use(cors((req, callback) => {
-    const origin = req.get('origin');
-    const temelAyarlar = {
-        credentials: false,
-        methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization'],
-        maxAge: 600,
-        optionsSuccessStatus: 204
-    };
+        if (izinliOriginler.has(origin) || ayniOriginMi(req, origin)) {
+            return callback(null, { ...temelAyarlar, origin });
+        }
 
-    if (!origin) {
-        return callback(null, { ...temelAyarlar, origin: false });
-    }
-
-    if (izinliOriginler.has(origin) || ayniOriginMi(req, origin)) {
-        return callback(null, { ...temelAyarlar, origin });
-    }
-
-    const err = new Error('CORS origin engellendi.');
-    err.status = 403;
-    err.kod = 'CORS_NOT_ALLOWED';
-    return callback(err);
-}));
+        const err = new Error('CORS origin engellendi.');
+        err.status = 403;
+        err.kod = 'CORS_NOT_ALLOWED';
+        return callback(err);
+    })
+);
 app.use('/uploads', yukleRouter);
 app.use(express.static(path.join(__dirname, 'public'), { etag: true, maxAge: '1h' }));
 app.use('/api/yukle', yukleRouter);

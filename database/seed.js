@@ -16,8 +16,9 @@ if (mevcutAdmin) {
     console.log(`"${adminKullaniciAdi}" kullanicisi zaten var, tekrar olusturulmadi.`);
 } else {
     const hash = bcrypt.hashSync(adminSifre, 10);
-    db.prepare("INSERT INTO kullanicilar (kullanici_adi, sifre, rol, ad_soyad, gorev_adi, renk) VALUES (?, ?, 'admin', ?, ?, ?)")
-      .run(adminKullaniciAdi, hash, 'Sistem Yoneticisi', 'Genel Baskan', '#c1121f');
+    db.prepare(
+        "INSERT INTO kullanicilar (kullanici_adi, sifre, rol, ad_soyad, gorev_adi, renk) VALUES (?, ?, 'admin', ?, ?, ?)"
+    ).run(adminKullaniciAdi, hash, 'Sistem Yoneticisi', 'Genel Baskan', '#c1121f');
     console.log('Admin kullanici olusturuldu:');
     console.log('  Kullanici adi : ' + adminKullaniciAdi);
     if (!prod) console.log('  Sifre         : ' + adminSifre);
@@ -37,7 +38,9 @@ const ilceListesi = require('./ilce-listesi');
 const ilBul = db.prepare('SELECT id FROM iller WHERE il_adi = ?');
 const ilceSayisi = db.prepare('SELECT COUNT(*) s FROM ilceler WHERE il_id = ?');
 const ilceEkle = db.prepare('INSERT INTO ilceler (il_id, ilce_adi) VALUES (?, ?)');
-let ilceEklenen = 0, ilceToplam = 0, atlananIl = 0;
+let ilceEklenen = 0,
+    ilceToplam = 0,
+    atlananIl = 0;
 for (const [ilAdi, ilceler] of Object.entries(ilceListesi)) {
     const il = ilBul.get(ilAdi);
     if (!il) {
@@ -46,7 +49,7 @@ for (const [ilAdi, ilceler] of Object.entries(ilceListesi)) {
     }
     ilceToplam += ilceler.length;
     // Eger bu ilin zaten ilceleri varsa atla (cifte ekleme onlemi)
-    const mevcutSayi = ilceSayisi.get(il.id).s;
+    const mevcutSayi = Number(ilceSayisi.get(il.id).s || 0);
     if (mevcutSayi > 0) {
         atlananIl++;
         continue;
@@ -56,5 +59,7 @@ for (const [ilAdi, ilceler] of Object.entries(ilceListesi)) {
         ilceEklenen++;
     }
 }
-console.log(`${ilceEklenen} ilce eklendi (toplam ${ilceToplam} ilce listede, ${atlananIl} il zaten dolu oldugu icin atlandi).`);
+console.log(
+    `${ilceEklenen} ilce eklendi (toplam ${ilceToplam} ilce listede, ${atlananIl} il zaten dolu oldugu icin atlandi).`
+);
 console.log('\nSeed islemi tamamlandi.');

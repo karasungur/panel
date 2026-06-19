@@ -8,15 +8,19 @@ let db;
 try {
     db = require('../database/db');
 
-    const tables = db.prepare(`
+    const tables = db
+        .prepare(
+            `
         SELECT name
         FROM sqlite_master
         WHERE type = 'table'
           AND name NOT LIKE 'sqlite_%'
         ORDER BY name
-    `).all();
+    `
+        )
+        .all();
 
-    const hasMigrationTable = tables.some(row => row.name === 'schema_migrations');
+    const hasMigrationTable = tables.some((row) => row.name === 'schema_migrations');
     const migrations = hasMigrationTable
         ? db.prepare('SELECT id, applied_at FROM schema_migrations ORDER BY id').all()
         : [];
@@ -28,7 +32,7 @@ try {
 
     if (migrations.length > 0) {
         console.log('Uygulanan migrationlar:');
-        migrations.forEach(row => console.log(`- ${row.id} (${row.applied_at})`));
+        migrations.forEach((row) => console.log(`- ${row.id} (${row.applied_at})`));
     } else {
         console.log('Kayitli migration bulunmadi; sema CREATE IF NOT EXISTS ile uygulandi.');
     }
