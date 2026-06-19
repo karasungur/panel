@@ -7,33 +7,104 @@ export function createMapFeature(ctx) {
     const ilKaydetTemel = (...args) => actions.ilKaydetBase(...args);
     const ilceKaydetTemel = (...args) => actions.ilceKaydetBase(...args);
     let zoomScale = 1;
+    let panX = 0;
+    let panY = 0;
+    let panBaslangicX = 0;
+    let panBaslangicY = 0;
+    let panKokX = 0;
+    let panKokY = 0;
+    let panAktif = false;
+    let panSuruklendi = false;
 
-    function haritaGuncelleTransform() {
+    function haritaPanSinirla() {
+        const alan = document.getElementById('harita-yer');
+        if (!alan || zoomScale <= 1) {
+            panX = 0;
+            panY = 0;
+            return;
+        }
+        const rect = alan.getBoundingClientRect();
+        const maxX = Math.max(0, (rect.width * (zoomScale - 1)) / 2);
+        const maxY = Math.max(0, (rect.height * (zoomScale - 1)) / 2);
+        panX = Math.min(maxX, Math.max(-maxX, panX));
+        panY = Math.min(maxY, Math.max(-maxY, panY));
+    }
+
+    function haritaGuncelleTransform(gecisli = true) {
         const g = document.querySelector('#harita-yer svg #turkiye');
+        const alan = document.getElementById('harita-yer');
+        haritaPanSinirla();
+        if (alan) {
+            alan.classList.toggle('harita-zoomlu', zoomScale > 1);
+            alan.classList.toggle('harita-surukleniyor', panAktif);
+        }
         if (g) {
-            g.style.transform = `scale(${zoomScale})`;
+            g.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
             g.style.transformOrigin = '50% 50%';
-            g.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+            g.style.transition = gecisli ? 'transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none';
         }
     }
 
     function haritaZoomIn() {
         if (zoomScale < 3) {
-            zoomScale += 0.25;
+            zoomScale = Math.min(3, zoomScale + 0.25);
             haritaGuncelleTransform();
         }
     }
 
     function haritaZoomOut() {
-        if (zoomScale > 0.75) {
-            zoomScale -= 0.25;
+        if (zoomScale > 1) {
+            zoomScale = Math.max(1, zoomScale - 0.25);
             haritaGuncelleTransform();
         }
     }
 
     function haritaZoomSifirla() {
         zoomScale = 1;
+        panX = 0;
+        panY = 0;
         haritaGuncelleTransform();
+    }
+
+    function haritaPanOlaylariniBagla() {
+        const alan = document.getElementById('harita-yer');
+        if (!alan || alan.dataset.panBaglandi === '1') return;
+        alan.dataset.panBaglandi = '1';
+
+        alan.addEventListener('pointerdown', (e) => {
+            if (zoomScale <= 1 || e.button !== 0) return;
+            panAktif = true;
+            panSuruklendi = false;
+            panBaslangicX = e.clientX;
+            panBaslangicY = e.clientY;
+            panKokX = panX;
+            panKokY = panY;
+            alan.setPointerCapture(e.pointerId);
+            haritaGuncelleTransform(false);
+        });
+
+        alan.addEventListener('pointermove', (e) => {
+            if (!panAktif) return;
+            const dx = e.clientX - panBaslangicX;
+            const dy = e.clientY - panBaslangicY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) panSuruklendi = true;
+            panX = panKokX + dx;
+            panY = panKokY + dy;
+            haritaGuncelleTransform(false);
+        });
+
+        const panBitir = (e) => {
+            if (!panAktif) return;
+            panAktif = false;
+            try {
+                alan.releasePointerCapture(e.pointerId);
+            } catch (_) {}
+            haritaGuncelleTransform();
+        };
+
+        alan.addEventListener('pointerup', panBitir);
+        alan.addEventListener('pointercancel', panBitir);
+        window.addEventListener('resize', () => haritaGuncelleTransform(false));
     }
 
     async function haritayiYukle() {
@@ -79,7 +150,10 @@ export function createMapFeature(ctx) {
 
         // Reset zoom
         zoomScale = 1;
+        panX = 0;
+        panY = 0;
         haritaGuncelleTransform();
+        haritaPanOlaylariniBagla();
 
         const pmap = {};
         state.haritaVeri.forEach((il) => (pmap[il.plaka] = il));
@@ -153,6 +227,10 @@ export function createMapFeature(ctx) {
             };
 
             const tikla = () => {
+                if (panSuruklendi) {
+                    panSuruklendi = false;
+                    return;
+                }
                 if (!il) return;
                 if (state.kullanici.rol !== 'admin' && !il.erisim) {
                     toast('Bu ile erişim yetkiniz yok.');
@@ -240,16 +318,16 @@ export function createMapFeature(ctx) {
                     : '<span class="rozet durum-bekliyor" style="font-size:10px;padding:2px 8px;margin-left:8px">Atanmadı</span>';
 
                 tr.innerHTML =
-                    '<td><div style="display:flex;align-items:center"><b>' +
+                    '<td data-label="İlçe Adı"><div style="display:flex;align-items:center"><b>' +
                     esc(ic.ilce_adi) +
                     '</b>' +
                     statusBadge +
-                    '</div></td><td>' +
+                    '</div></td><td data-label="Tanıtım ve Medya Başkanı">' +
                     baskanHucre(ic) +
-                    '</td><td>' +
+                    '</td><td data-label="Sosyal Medya">' +
                     sosyalHucre(ic) +
                     '</td>' +
-                    '<td><button type="button" class="islem-btn" data-action-call="haritadaIlceDuzenle(' +
+                    '<td data-label="İşlem"><button type="button" class="islem-btn" data-action-call="haritadaIlceDuzenle(' +
                     icId +
                     ')">Düzenle</button></td>';
                 tb.appendChild(tr);

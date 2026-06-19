@@ -70,18 +70,18 @@ export function createProvinceFeature(ctx) {
             const ilId = guvenliId(il.id);
             const ilAdi = metin(il.il_adi);
             tr.innerHTML =
-                '<td>' +
+                '<td data-label="Plaka">' +
                 esc(il.plaka || '-') +
                 '</td>' +
-                '<td><span class="il-link">' +
+                '<td data-label="İl Adı"><span class="il-link">' +
                 esc(ilAdi) +
                 '</span></td>' +
-                '<td>' +
+                '<td data-label="Tanıtım ve Medya Başkanı">' +
                 baskanHucre(il) +
-                '</td><td>' +
+                '</td><td data-label="Sosyal Medya">' +
                 sosyalHucre(il) +
                 '</td>' +
-                '<td><button type="button" class="islem-btn" data-action-call="ilDuzenle(' +
+                '<td data-label="İşlem"><button type="button" class="islem-btn" data-action-call="ilDuzenle(' +
                 ilId +
                 ')">Düzenle</button></td>';
             tr.querySelector('.il-link').onclick = () => ilSecVeIlceleriGoster(ilId, ilAdi);
@@ -109,14 +109,14 @@ export function createProvinceFeature(ctx) {
             const tr = document.createElement('tr');
             const icId = guvenliId(ic.id);
             tr.innerHTML =
-                '<td><b>' +
+                '<td data-label="İlçe Adı"><b>' +
                 esc(ic.ilce_adi) +
-                '</b></td><td>' +
+                '</b></td><td data-label="Tanıtım ve Medya Başkanı">' +
                 baskanHucre(ic) +
-                '</td><td>' +
+                '</td><td data-label="Sosyal Medya">' +
                 sosyalHucre(ic) +
                 '</td>' +
-                '<td><button type="button" class="islem-btn" data-action-call="ilceDuzenle(' +
+                '<td data-label="İşlem"><button type="button" class="islem-btn" data-action-call="ilceDuzenle(' +
                 icId +
                 ')">Düzenle</button><button type="button" class="islem-btn sil-btn" data-action-call="ilceSil(' +
                 icId +

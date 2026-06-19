@@ -39,7 +39,7 @@ export function createUsersFeature(ctx) {
             let gorevRozet;
             const renk = guvenliRenk(k.renk);
             if (k.rol === 'admin')
-                gorevRozet = '<span class="rozet" style="background:#c1121f">Tanıtım ve Medya Başkanı</span>';
+                gorevRozet = '<span class="gorev-rozet rol-rozet-admin">Tanıtım ve Medya Başkanı</span>';
             else if (k.rol === 'yardimci')
                 gorevRozet =
                     '<span class="rozet" style="background:#856404">Yardımcı</span>' +
@@ -122,20 +122,20 @@ export function createUsersFeature(ctx) {
                 '</span>';
             const tr = document.createElement('tr');
             tr.innerHTML =
-                '<td><div class="baskan-hucre">' +
+                '<td data-label="Kullanıcı"><div class="baskan-hucre">' +
                 avatar +
                 '<div class="baskan-bilgi"><b>' +
                 esc(gorunenAd) +
                 '</b><br>' +
                 esc(telefonMetni) +
                 '</div></div></td>' +
-                '<td>' +
+                '<td data-label="Görev">' +
                 gorevRozet +
-                '</td><td>' +
+                '</td><td data-label="Sorumlu İller">' +
                 iller +
-                '</td><td>' +
+                '</td><td data-label="Son Giriş">' +
                 sonGiris +
-                '</td><td>' +
+                '</td><td data-label="İşlem">' +
                 islem +
                 '</td>';
             tb.appendChild(tr);

@@ -98,22 +98,23 @@ a {
 /* Sidebar kapali iken */
 .sb-toggle {
     position: absolute;
-    top: 14px;
-    right: 14px;
+    top: 12px;
+    right: 12px;
     width: 32px;
     height: 32px;
     border-radius: 8px;
-    background: rgba(255, 255, 255, 0.15);
-    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.14);
     color: #fff;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: 0.15s;
+    z-index: 2;
 }
 .sb-toggle:hover {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.2);
 }
 .sb-toggle svg {
     width: 18px;
@@ -121,21 +122,27 @@ a {
     fill: currentColor;
 }
 .sb-marka {
-    padding: 22px 20px;
+    min-height: 154px;
+    padding: 22px 52px 20px;
+    color: #fff;
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    gap: 10px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 .sb-marka .ikon {
-    width: 40px;
-    height: 40px;
-    background: #fff;
-    border-radius: 10px;
+    width: 68px;
+    height: 68px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
+    padding: 4px;
 }
 .sb-marka .ikon svg {
     width: 24px;
@@ -143,9 +150,12 @@ a {
     fill: var(--primary);
 }
 .sb-marka h1 {
-    font-size: 15px;
+    max-width: 150px;
+    font-size: 14px;
     font-weight: 700;
-    line-height: 1.2;
+    line-height: 1.25;
+    text-align: center;
+    color: #fff;
 }
 .sb-nav {
     flex: 1;
@@ -359,6 +369,17 @@ a {
     border-radius: 12px;
     background: var(--surface-low);
     padding: 10px;
+}
+#harita-yer.harita-zoomlu {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+#harita-yer.harita-surukleniyor {
+    cursor: grabbing;
+}
+#harita-yer.harita-zoomlu svg g {
+    cursor: grab;
 }
 #harita-yer svg {
     width: 100%;
@@ -714,6 +735,11 @@ tr:hover td {
     background: var(--secondary-container);
     color: var(--on-secondary-container);
 }
+.rol-rozet-admin {
+    background: var(--surface-container);
+    color: var(--primary);
+    border: 1px solid var(--outline-variant);
+}
 .baskan-hucre {
     display: flex;
     align-items: center;
@@ -812,9 +838,9 @@ tr:hover td {
     background: rgba(0, 12, 30, 0.55);
     z-index: 999;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center;
     overflow-y: auto;
-    padding: 40px 16px;
+    padding: 24px 16px;
     backdrop-filter: blur(2px);
 }
 .modal-bg.aktif {
@@ -825,6 +851,8 @@ tr:hover td {
     border-radius: 18px;
     width: 480px;
     max-width: 100%;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
     padding: 28px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 }
@@ -1195,6 +1223,33 @@ tr:hover td {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
+}
+
+.il-secim-aksiyonlar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.il-secim-liste {
+    max-height: min(400px, 46vh);
+    overflow-y: auto;
+    border: 1px solid var(--outline-variant);
+    border-radius: 8px;
+    padding: 10px;
+}
+.il-secim-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 6px;
+}
+.il-secim-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    font-size: 13px;
+    cursor: pointer;
 }
 
 .uyari-toast {
@@ -2049,7 +2104,7 @@ tr:hover td {
     .modal {
         width: 96vw;
         padding: 18px;
-        max-height: 92vh;
+        max-height: calc(100vh - 28px);
         overflow-y: auto;
     }
     .modal.genis {
@@ -2094,7 +2149,110 @@ tr:hover td {
         flex: 1;
     }
 }
+@media (max-width: 700px) {
+    .responsive-table-wrap {
+        overflow-x: visible !important;
+    }
+    .responsive-data-table,
+    .responsive-data-table thead,
+    .responsive-data-table tbody,
+    .responsive-data-table tr,
+    .responsive-data-table td {
+        display: block;
+        width: 100%;
+    }
+    .responsive-data-table thead {
+        display: none;
+    }
+    .responsive-data-table tr {
+        border: 1px solid var(--outline-variant);
+        border-radius: 12px;
+        background: var(--surface);
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.035);
+    }
+    .responsive-data-table tr:hover td {
+        background: transparent;
+    }
+    .responsive-data-table td {
+        border-bottom: 1px solid var(--surface-container);
+        padding: 10px 0;
+    }
+    .responsive-data-table td:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+    .responsive-data-table td[data-label] {
+        display: grid;
+        grid-template-columns: minmax(112px, 36%) minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+    }
+    .responsive-data-table td[data-label]::before {
+        content: attr(data-label);
+        color: var(--secondary);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.4px;
+        line-height: 1.3;
+        text-transform: uppercase;
+    }
+    .responsive-data-table td.bos-mesaj {
+        display: block;
+        text-align: center;
+        border-bottom: 0;
+    }
+    .responsive-data-table .baskan-hucre {
+        align-items: flex-start;
+        min-width: 0;
+    }
+    .responsive-data-table .baskan-bilgi {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+    .responsive-data-table .il-etiketleri,
+    .responsive-data-table .kullanici-islem-grup {
+        flex-wrap: wrap;
+    }
+    .responsive-data-table .sosyal-link {
+        margin-bottom: 4px;
+    }
+    .bolum-baslik > div {
+        width: 100%;
+    }
+    .bolum-baslik .btn,
+    .indir-wrap {
+        width: 100%;
+    }
+    .bolum-baslik .btn {
+        justify-content: center;
+    }
+    .indir-menu {
+        left: 0;
+        right: auto;
+        min-width: 0;
+        width: min(100%, calc(100vw - 32px));
+        max-width: calc(100vw - 32px);
+    }
+    .modal-btnlar {
+        flex-direction: column;
+    }
+    .il-secim-grid {
+        grid-template-columns: 1fr;
+    }
+    .il-secim-label {
+        padding: 8px;
+    }
+}
 @media (max-width: 500px) {
+    .responsive-data-table td[data-label] {
+        display: block;
+    }
+    .responsive-data-table td[data-label]::before {
+        display: block;
+        margin-bottom: 6px;
+    }
     .topbar .sol {
         flex: 1;
         min-width: 0;

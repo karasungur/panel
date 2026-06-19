@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>Giriş — Tanıtım ve Medya Paneli</title>
+        <title>Giriş — AK Parti Gençlik Kolları</title>
         <link
             href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
             rel="stylesheet"
@@ -14,7 +14,7 @@
                 --primary-hover: #c24e00;
                 --primary-container: rgba(227, 92, 0, 0.08);
                 --on-primary: #fff;
-                --bg: #f8fafc;
+                --bg: #ffffff;
                 --surface: #fff;
                 --surface-low: #f1f5f9;
                 --surface-container: #e2e8f0;
@@ -39,9 +39,6 @@
                 align-items: center;
                 justify-content: center;
                 padding: 16px;
-                background-image:
-                    radial-gradient(at 0% 0%, rgba(227, 92, 0, 0.07) 0, transparent 50%),
-                    radial-gradient(at 100% 100%, rgba(15, 23, 42, 0.05) 0, transparent 50%);
             }
             .kart {
                 width: 100%;
@@ -54,15 +51,14 @@
                 margin-bottom: 28px;
             }
             .logo {
-                width: 64px;
-                height: 64px;
-                background: var(--primary);
-                border-radius: 16px;
+                width: min(192px, 54vw);
+                height: min(192px, 54vw);
+                background: transparent;
+                border-radius: 24px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                margin-bottom: 16px;
-                box-shadow: 0 8px 24px rgba(227, 92, 0, 0.2);
+                margin-bottom: 20px;
                 transition: transform 0.3s ease;
             }
             .logo:hover {
@@ -317,6 +313,11 @@
                     padding: 24px;
                     border-radius: 16px;
                 }
+                .logo {
+                    width: min(160px, 48vw);
+                    height: min(160px, 48vw);
+                    border-radius: 20px;
+                }
                 .marka h1 {
                     font-size: 20px;
                 }
@@ -336,8 +337,8 @@
                         style="width: 100%; height: 100%; object-fit: contain; border-radius: inherit"
                     />
                 </div>
-                <h1>Tanıtım ve Medya Paneli</h1>
-                <p>Gençlik Kolları</p>
+                <h1>AK Parti Gençlik Kolları</h1>
+                <p>Tanıtım ve Medya Başkanlığı</p>
             </div>
             <form class="form-kart" id="login-form" novalidate>
                 <div class="alan">
@@ -403,20 +404,7 @@
                 <div class="hata" id="hata-mesaji" role="alert"></div>
             </form>
             <div class="alt-uyari">
-                <span class="rozet">
-                    <svg
-                        aria-hidden="true"
-                        focusable="false"
-                        viewBox="0 0 24 24"
-                        style="width: 16px; height: 16px; fill: currentColor"
-                    >
-                        <path
-                            d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11V11.99z"
-                        />
-                    </svg>
-                    Yetkisiz girişler engellenmektedir.
-                </span>
-                <p class="telif">© 2026 Tanıtım ve Medya Paneli</p>
+                <p class="telif">© 2026 Tanıtım ve Medya Başkanlığı</p>
             </div>
         </div>
         <script type="module" src="/assets/login.js"></script>

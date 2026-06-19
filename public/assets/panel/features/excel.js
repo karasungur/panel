@@ -223,18 +223,18 @@ export function createExcelFeature(ctx) {
         m.id = 'il-secim-modal';
         m.className = 'modal-bg aktif';
         m.innerHTML =
-            '<div class="modal genis">' +
+            '<div class="modal genis il-secim-dialog">' +
             '<h3>İl Seçimi</h3>' +
             '<p style="font-size:13px;color:var(--secondary);margin-bottom:12px">İndirmek istediğiniz illeri seçin:</p>' +
-            '<div style="display:flex;gap:8px;margin-bottom:12px">' +
-            '<button type="button" class="btn btn-ikincil" data-action-call="ilSecHepsi(true)" style="font-size:12px;padding:6px 12px">Hepsini Seç</button>' +
-            '<button type="button" class="btn btn-ikincil" data-action-call="ilSecHepsi(false)" style="font-size:12px;padding:6px 12px">Seçimi Temizle</button>' +
+            '<div class="il-secim-aksiyonlar">' +
+            '<button type="button" class="btn btn-ikincil" data-action-call="ilSecHepsi(true)">Hepsini Seç</button>' +
+            '<button type="button" class="btn btn-ikincil" data-action-call="ilSecHepsi(false)">Seçimi Temizle</button>' +
             '</div>' +
-            '<div style="max-height:400px;overflow-y:auto;border:1px solid var(--outline-variant);border-radius:8px;padding:10px"><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px">' +
+            '<div class="il-secim-liste"><div class="il-secim-grid">' +
             iller
                 .map(
                     (il) =>
-                        '<label style="display:flex;align-items:center;gap:6px;padding:4px;font-size:13px;cursor:pointer"><input type="checkbox" class="il-secim-cb" value="' +
+                        '<label class="il-secim-label"><input type="checkbox" class="il-secim-cb" value="' +
                         guvenliId(il.id) +
                         '"><span>' +
                         esc(il.plaka) +
